@@ -1,0 +1,5 @@
+{
+  "name": "Bêta bot",
+  "description": "A sophisticated dashboard to monitor and control a crypto arbitrage bot. This interface provides real-time tracking of opportunities, AI-driven trade analysis, performance metrics, and configuration management for the underlying trading engine.",
+  "requestFramePermissions": []
+}
