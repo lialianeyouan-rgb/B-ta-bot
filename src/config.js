@@ -24,7 +24,7 @@ const quickNodeKey = "QN_c3adb60721754445bfaa103c8aea986f";
 module.exports = {
     // --- Clés Secrètes ---
     // REMPLACEZ PAR VOTRE VÉRITABLE CLÉ API GEMINI
-    geminiApiKey: "VOTRE_CLE_API_GEMINI_ICI",
+    geminiApiKey: "AIzaSyB_9tOr19WcNySmJPUO5YGeFiJfcDFjQiA",
 
     // Clé privée de portefeuille. PRUDENCE EXTRÊME.
     privateKey: "0x54923eccb60f4baa86a6e004a280b14b3b1de39b3ca18538f85d8f90c78b52c7",
