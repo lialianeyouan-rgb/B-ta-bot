@@ -8,6 +8,8 @@ const { FlashbotsExecutor } = require('./flashbotsExecutor');
 const { VectorStore } = require('./memory/vectorStore');
 const appConfig = require('./config'); // Use the new config file
 
+const HISTORY_FILE = './tradeHistory.json';
+
 class ArbitrageBot {
   constructor(broadcast) {
     this.broadcast = broadcast;
@@ -27,7 +29,7 @@ class ArbitrageBot {
     this.cooldownUntil = 0; // For risk management
 
     this.vectorStore = new VectorStore();
-    this.tradeHistory.forEach(trade => this.vectorStore.addTrade(trade));
+    this.loadHistory(); // Load persistent history on startup
 
     // --- RPC Redundancy & Failover ---
     // Filter out placeholder URLs before creating providers
@@ -43,6 +45,29 @@ class ArbitrageBot {
     
     this.wallet = new ethers.Wallet(appConfig.privateKey, this.provider);
     this.flashbotsExecutor = null;
+  }
+
+  loadHistory() {
+      try {
+          if (fs.existsSync(HISTORY_FILE)) {
+              const data = fs.readFileSync(HISTORY_FILE, 'utf-8');
+              this.tradeHistory = JSON.parse(data);
+              this.addLog(`Loaded ${this.tradeHistory.length} trades from persistent history.`);
+              this.tradeHistory.forEach(trade => this.vectorStore.addTrade(trade));
+          }
+      } catch (err) {
+          this.addLog(`Error loading trade history: ${err.message}`);
+          console.error("Error loading trade history:", err);
+      }
+  }
+
+  saveHistory() {
+      try {
+          fs.writeFileSync(HISTORY_FILE, JSON.stringify(this.tradeHistory, null, 2));
+      } catch (err) {
+          this.addLog(`Error saving trade history: ${err.message}`);
+          console.error("Error saving trade history:", err);
+      }
   }
 
   addLog(message) {
@@ -61,9 +86,11 @@ class ArbitrageBot {
     const today = new Date().toDateString();
     const tradesTodayList = this.tradeHistory.filter(t => new Date(t.timestamp).toDateString() === today && t.status !== 'simulated');
     
-    const successfulTrades = tradesTodayList.filter(t => t.status === 'success');
+    const successfulTrades = this.tradeHistory.filter(t => t.status === 'success');
+    const completedTrades = this.tradeHistory.filter(t => t.status !== 'simulated');
+
     const totalPnl = this.tradeHistory.reduce((acc, trade) => acc + (trade.profit || 0), 0);
-    const successRate = tradesTodayList.length > 0 ? (successfulTrades.length / tradesTodayList.length) * 100 : 0;
+    const successRate = completedTrades.length > 0 ? (successfulTrades.length / completedTrades.length) * 100 : 0;
     
     this.stats = {
       totalPnl: totalPnl,
@@ -187,6 +214,7 @@ class ArbitrageBot {
          
           this.broadcast({ type: 'history_update', data: newTrade });
           this.updateStats(marketContext);
+          this.saveHistory(); // Persist history after each trade
         }
       } else {
           this.addLog("No new opportunities found in this scan.");
@@ -216,6 +244,7 @@ class ArbitrageBot {
 
       this.addLog('Bot is now fully autonomous...');
       await this.updateMarketSentiment();
+      this.updateStats(); // Initial stats calculation from loaded history
       await this.mainLoop();
       await this.getStrategicUpdate();
       

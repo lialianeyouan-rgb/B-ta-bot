@@ -26,7 +26,7 @@ class FlashbotsExecutor {
     const flashbotsProvider = await FlashbotsBundleProvider.create(
       provider,
       authSigner,
-      "https://relay.flashbots.net", // Correct relay for Polygon Mainnet
+      "https://relay-polygon.flashbots.net", // Correct relay for Polygon Mainnet
       "matic" // Correct network name for Polygon
     );
     

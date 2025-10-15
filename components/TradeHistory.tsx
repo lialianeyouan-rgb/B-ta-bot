@@ -12,6 +12,13 @@ const getStatusBadge = (status: Trade['status']) => {
     }
 }
 
+const getExecutionBadge = (useFlashbots: boolean | undefined) => {
+    if (useFlashbots) {
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-200 text-purple-800">Flashbots</span>
+    }
+    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-800">Standard</span>
+}
+
 export const TradeHistory: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
@@ -30,6 +37,7 @@ export const TradeHistory: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Timestamp</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Pair</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Strategy</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Execution</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">PnL (ETH)</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Size</th>
@@ -43,6 +51,7 @@ export const TradeHistory: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{new Date(trade.timestamp).toLocaleString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{trade.opportunity.token.symbol}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{trade.strategy}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{getExecutionBadge(trade.opportunity.useFlashbots)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">{getStatusBadge(trade.status)}</td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${trade.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {trade.profit.toFixed(6)}
@@ -58,7 +67,7 @@ export const TradeHistory: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                     </tr>
                     {expandedRow === trade.id && (
                         <tr>
-                            <td colSpan={7} className="px-6 py-4 bg-gray-900/50 space-y-3">
+                            <td colSpan={8} className="px-6 py-4 bg-gray-900/50 space-y-3">
                                 <div className="text-sm text-gray-300">
                                     <p className="font-semibold text-blue-400 mb-1">Gemini Post-Mortem:</p>
                                     <p>{trade.postMortem || 'No analysis available.'}</p>

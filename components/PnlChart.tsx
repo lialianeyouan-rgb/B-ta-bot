@@ -20,14 +20,14 @@ const PnlChart: FC<PnlChartProps> = ({ trades }) => {
     const sortedTrades = [...trades].sort((a, b) => a.timestamp - b.timestamp);
     
     let cumulativePnl = 0;
-    return sortedTrades.map(trade => {
-        if (trade.status === 'success') {
-             cumulativePnl += trade.profit;
-        }
-      return {
-        timestamp: trade.timestamp,
-        cumulativePnl: cumulativePnl,
-      };
+    return sortedTrades
+      .filter(trade => trade.status === 'success' || trade.status === 'failed') // Only include completed trades in PnL
+      .map(trade => {
+        cumulativePnl += trade.profit;
+        return {
+          timestamp: trade.timestamp,
+          cumulativePnl: cumulativePnl,
+        };
     });
   }, [trades]);
 

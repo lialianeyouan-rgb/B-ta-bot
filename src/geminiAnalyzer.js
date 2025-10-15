@@ -64,13 +64,14 @@ async function analyzeOpportunity(opportunity, marketContext, vectorStore) {
         - DEX: ${opportunity.token.dexs[0]}
         - Gross Spread: ${(opportunity.spread * 100).toFixed(4)}%
         - Net Spread (after loan fee): ${((opportunity.spread - marketContext.flashLoan.fee) * 100).toFixed(4)}%
+        - Pool Liquidity: ${opportunity.liquidity}
 
         ${memoryContext}
 
         Task: Provide a strategic assessment for a TRIANGULAR flash loan.
-        1.  pSuccess: Probability of success. This is lower than pairwise due to 3 swaps (3x slippage risk). High volatility is extremely risky here.
-        2.  loanAmount: Optimal loan amount in ETH to borrow. Must be conservative due to multi-leg slippage.
-        3.  rationale: Explain the decision, highlighting the heightened risk of triangular routes.
+        1.  pSuccess: Probability of success. This is lower than pairwise due to 3 swaps (3x slippage risk). High volatility is extremely risky here. Low liquidity greatly increases slippage risk.
+        2.  loanAmount: Optimal loan amount in ETH to borrow. Must be conservative due to multi-leg slippage. A small loan is safer if liquidity is low.
+        3.  rationale: Explain the decision, highlighting the heightened risk of triangular routes and considering the available liquidity.
         4.  useFlashbots: Mandatory recommendation. Triangular arbitrage is impossible without MEV protection.
         `;
     } else if (opportunity.strategy === 'flashloan-pairwise-interdex') {
@@ -93,13 +94,14 @@ async function analyzeOpportunity(opportunity, marketContext, vectorStore) {
         - Arbitrage Route: ${opportunity.token.dexs[0]} -> ${opportunity.token.dexs[1]}
         - Gross Spread: ${(opportunity.spread * 100).toFixed(4)}%
         - Net Spread (after loan fee): ${((opportunity.spread - marketContext.flashLoan.fee) * 100).toFixed(4)}%
+        - Pool Liquidity: ${opportunity.liquidity}
 
         ${memoryContext}
 
         Task: Provide a strategic assessment for an INTER-DEX flash loan.
-        1.  pSuccess: Probability of success. Must account for gas cost of swapping on TWO different DEXs and network latency between them.
-        2.  loanAmount: Optimal loan amount in ETH. Slippage is still a factor, but the main risk is the higher fixed gas cost eating the profit.
-        3.  rationale: Explain if the spread is large enough to cover the higher gas fees of a multi-DEX transaction.
+        1.  pSuccess: Probability of success. Must account for gas cost of swapping on TWO different DEXs and network latency. Check if liquidity is sufficient on both ends.
+        2.  loanAmount: Optimal loan amount in ETH. Consider the liquidity on the thinner of the two DEXs to avoid massive slippage on the sell-side.
+        3.  rationale: Explain if the spread is large enough to cover the higher gas fees of a multi-DEX transaction and if liquidity supports the loan.
         4.  useFlashbots: Mandatory recommendation to prevent front-running.
         `;
     } else {

@@ -42,6 +42,13 @@ const SettingsIcon = () => (
     </svg>
 );
 
+const AnalysisIcon = () => (
+    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+);
+
+
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => {
   return (
     <button
@@ -70,6 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView })
       <nav className="flex flex-col space-y-2">
         <NavItem icon={<DashboardIcon />} label="Dashboard" isActive={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
         <NavItem icon={<HistoryIcon />} label="Trade History" isActive={currentView === 'history'} onClick={() => setCurrentView('history')} />
+        <NavItem icon={<AnalysisIcon />} label="Strategy Analysis" isActive={currentView === 'backtesting'} onClick={() => setCurrentView('backtesting')} />
         <NavItem icon={<LogsIcon />} label="Live Logs" isActive={currentView === 'logs'} onClick={() => setCurrentView('logs')} />
         <NavItem icon={<SettingsIcon />} label="Configuration" isActive={currentView === 'configuration'} onClick={() => setCurrentView('configuration')} />
       </nav>

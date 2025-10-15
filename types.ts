@@ -34,7 +34,7 @@ export interface Opportunity {
   token: TokenConfig;
   strategy: Strategy;
   spread: number;
-  liquidity: number;
+  liquidity: string; // Changed from number to string to hold descriptive liquidity info
   pSuccess?: number;
   optimalSize?: number; // For classic arbitrage
   loanAmount?: number; // For flash loan arbitrage
@@ -57,7 +57,7 @@ export interface Trade {
 
 export type BotStatus = 'running' | 'stopped' | 'error' | 'paused';
 
-export type View = 'dashboard' | 'configuration' | 'history' | 'logs';
+export type View = 'dashboard' | 'configuration' | 'history' | 'logs' | 'backtesting';
 
 export interface RpcStatus {
     url: string;

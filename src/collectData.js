@@ -13,6 +13,11 @@ const IUniswapV2FactoryABI = [
     'function getPair(address tokenA, address tokenB) external view returns (address pair)',
 ];
 
+// Assuming common 18 decimals for formatting. A production system would fetch decimals for each token.
+const WETH_ADDRESS = "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619".toLowerCase();
+const WMATIC_ADDRESS = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270".toLowerCase();
+
+
 const DEX_CONFIG = {
     'QuickSwap': { factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32', router: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff' },
     'Sushiswap': { factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', router: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506' },
@@ -27,18 +32,41 @@ async function getPriceFromPair(pairAddress, provider) {
     if (!pairAddress || pairAddress === ethers.ZeroAddress) return null;
     try {
         const pairContract = new ethers.Contract(pairAddress, IUniswapV2PairABI, provider);
-        const [reserves, token0] = await Promise.all([
+        const [[reserve0, reserve1], token0, token1] = await Promise.all([
             pairContract.getReserves(),
-            pairContract.token0()
+            pairContract.token0(),
+            pairContract.token1()
         ]);
-        const { reserve0, reserve1 } = reserves;
         if (reserve0 === 0n || reserve1 === 0n) return null;
-        return { reserve0, reserve1, token0Address: token0 };
+        return { reserve0, reserve1, token0Address: token0, token1Address: token1 };
     } catch (e) {
         console.error(`Could not fetch price from pair ${pairAddress}: ${e.message}`);
         return null;
     }
 }
+
+function getLiquidityString(pairData, tokenA_addr, tokenB_addr) {
+    let reserveA, reserveB;
+    if (pairData.token0Address.toLowerCase() === tokenA_addr.toLowerCase()) {
+        reserveA = pairData.reserve0;
+        reserveB = pairData.reserve1;
+    } else {
+        reserveA = pairData.reserve1;
+        reserveB = pairData.reserve0;
+    }
+    
+    // Prioritize showing WETH or WMATIC reserve as they are more common base pairs
+    if (tokenA_addr.toLowerCase() === WETH_ADDRESS || tokenA_addr.toLowerCase() === WMATIC_ADDRESS) {
+        return `${parseFloat(ethers.formatUnits(reserveA, 18)).toFixed(2)} ${tokenA_addr.toLowerCase() === WETH_ADDRESS ? 'WETH' : 'WMATIC'}`;
+    }
+    if (tokenB_addr.toLowerCase() === WETH_ADDRESS || tokenB_addr.toLowerCase() === WMATIC_ADDRESS) {
+        return `${parseFloat(ethers.formatUnits(reserveB, 18)).toFixed(2)} ${tokenB_addr.toLowerCase() === WETH_ADDRESS ? 'WETH' : 'WMATIC'}`;
+    }
+
+    // Fallback
+    return `${ethers.formatUnits(reserveA, 18)} / ${ethers.formatUnits(reserveB, 18)}`;
+}
+
 
 async function getTriangularOpportunities(token, provider) {
     const [dexName] = token.dexs;
@@ -64,11 +92,13 @@ async function getTriangularOpportunities(token, provider) {
 
     const priceAB = pairAB_data.token0Address.toLowerCase() === tokenA.toLowerCase() ? Number(pairAB_data.reserve1) / Number(pairAB_data.reserve0) : Number(pairAB_data.reserve0) / Number(pairAB_data.reserve1);
     const priceBC = pairBC_data.token0Address.toLowerCase() === tokenB.toLowerCase() ? Number(pairBC_data.reserve1) / Number(pairBC_data.reserve0) : Number(pairBC_data.reserve0) / Number(pairBC_data.reserve1);
-    const priceCA = pairCA_data.token0Address.toLowerCase() === tokenC.toLowerCase() ? Number(pairCA_data.reserve1) / Number(pairCA_data.reserve0) : Number(pairCA_data.reserve0) / Number(pairCA_data.reserve1);
+    const priceCA = pairCA_data.token0Address.toLowerCase() === tokenC.toLowerCase() ? Number(CA_data.reserve1) / Number(pairCA_data.reserve0) : Number(pairCA_data.reserve0) / Number(pairCA_data.reserve1);
 
     // Formula: (1 / priceAB) * (1 / priceBC) * priceCA should be > 1 for profit
     const arbitrageRatio = (1 / priceAB) * (1 / priceBC) * priceCA;
     const spread = Math.abs(1 - arbitrageRatio);
+    
+    const liquidity = getLiquidityString(pairAB_data, tokenA, tokenB);
 
     if (arbitrageRatio > (1 + token.minSpread)) {
          return {
@@ -76,7 +106,7 @@ async function getTriangularOpportunities(token, provider) {
             token: token,
             strategy: token.strategy,
             spread: spread,
-            liquidity: 1, // Placeholder
+            liquidity: liquidity,
             timestamp: Date.now(),
         };
     }
@@ -110,6 +140,8 @@ async function getPairwiseInterDEXOpportunities(token, provider) {
     const price2 = pair2_data.token0Address.toLowerCase() === tokenA.toLowerCase() ? Number(pair2_data.reserve1) / Number(pair2_data.reserve0) : Number(pair2_data.reserve0) / Number(pair2_data.reserve1);
     
     const spread = Math.abs(price2 - price1) / Math.min(price1, price2);
+    
+    const liquidity = `${dex1Name}: ${getLiquidityString(pair1_data, tokenA, tokenB)} | ${dex2Name}: ${getLiquidityString(pair2_data, tokenA, tokenB)}`;
 
     if (spread > token.minSpread) {
         // We need to determine which way the arbitrage goes (buy on DEX1 sell on DEX2, or vice versa)
@@ -120,7 +152,7 @@ async function getPairwiseInterDEXOpportunities(token, provider) {
             token: token,
             strategy: token.strategy,
             spread: spread,
-            liquidity: 1, // Placeholder
+            liquidity: liquidity,
             timestamp: Date.now(),
         };
     }

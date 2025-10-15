@@ -21,39 +21,52 @@ const FLASH_LOAN_ABI = [
 
 
 async function executeArbitrage(wallet, provider, trade, config, flashbotsExecutor) {
-    let tx;
     const { gasPrice } = (await provider.getFeeData());
     const flashLoanContract = new ethers.Contract(config.flashLoan.contractAddress, FLASH_LOAN_ABI, wallet);
     const loanAmountWei = ethers.parseEther(trade.loanAmount.toString());
 
     try {
+        let estimatedGas;
+        let populatedTx;
+
         if (trade.strategy === 'flashloan-triangular') {
             const dexRouter = DEX_CONFIG[trade.token.dexs[0]].router;
-             tx = await flashLoanContract.executeFlashLoanTriangular.populateTransaction(
+            const args = [
                 trade.token.addresses.tokenA,
                 trade.token.addresses.tokenB,
                 trade.token.addresses.tokenC,
                 dexRouter,
-                loanAmountWei,
-                { gasPrice, gasLimit: 800000 }
-            );
+                loanAmountWei
+            ];
+            estimatedGas = await flashLoanContract.executeFlashLoanTriangular.estimateGas(...args);
+            populatedTx = await flashLoanContract.executeFlashLoanTriangular.populateTransaction(...args);
         } else if (trade.strategy === 'flashloan-pairwise-interdex') {
             const dex1Router = DEX_CONFIG[trade.token.dexs[0]].router;
             const dex2Router = DEX_CONFIG[trade.token.dexs[1]].router;
-            tx = await flashLoanContract.executeFlashLoanPairwiseInterDEX.populateTransaction(
+             const args = [
                 trade.token.addresses.tokenA,
                 trade.token.addresses.tokenB,
                 dex1Router,
                 dex2Router,
-                loanAmountWei,
-                { gasPrice, gasLimit: 1200000 } // Higher gas limit for inter-dex
-            );
+                loanAmountWei
+            ];
+            estimatedGas = await flashLoanContract.executeFlashLoanPairwiseInterDEX.estimateGas(...args);
+            populatedTx = await flashLoanContract.executeFlashLoanPairwiseInterDEX.populateTransaction(...args);
         } else {
             throw new Error(`Unsupported strategy for execution: ${trade.strategy}`);
         }
         
-        tx.chainId = (await provider.getNetwork()).chainId;
-        tx.nonce = await provider.getTransactionCount(wallet.address);
+        // Add a 20% buffer to the estimated gas for safety
+        const gasLimit = (estimatedGas * 120n) / 100n;
+
+        const tx = {
+            ...populatedTx,
+            gasPrice,
+            gasLimit,
+            chainId: (await provider.getNetwork()).chainId,
+            nonce: await provider.getTransactionCount(wallet.address)
+        };
+
 
         let txResponse;
         let txHash;
