@@ -16,6 +16,11 @@
 // #                                                                                 #
 // ###################################################################################
 
+// --- Clés RPC ---
+const infuraKey = "6f76f3970b6d4ea08d24d825e3c7f86b";
+const alchemyKey = "0QT7wJ8mXN6ImihIV7O20";
+const quickNodeKey = "QN_c3adb60721754445bfaa103c8aea986f";
+
 module.exports = {
     // --- Clés Secrètes ---
     // REMPLACEZ PAR VOTRE VÉRITABLE CLÉ API GEMINI
@@ -27,11 +32,10 @@ module.exports = {
     // --- Configuration RPC pour Polygon MAINNET (FONDS RÉELS) ---
     // Le bot utilisera ces URLs pour la redondance et la performance.
     rpcUrls: [
-        "https://polygon-mainnet.infura.io/v3/6f76f3970b6d4ea08d24d825e3c7f86b",
-        "https://polygon-mainnet.g.alchemy.com/v2/0QT7wJ8mXN6ImihIV7O20",
-        // ACTION REQUISE : REMPLACEZ CECI par votre URL QuickNode COMPLÈTE.
-        // Votre clé est QN_c3adb60721754445bfaa103c8aea986f.
-        // Exemple : "https://nom-aleatoire.polygon-mainnet.discover.quiknode.pro/QN_c3adb.../"
-        "VOTRE_URL_QUICKNODE_COMPLETE_ICI"
+        `https://polygon-mainnet.infura.io/v3/${infuraKey}`,
+        `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+        // ACTION REQUISE : Remplacez "VOTRE_ENDPOINT_QUICKNODE" par le nom de votre endpoint QuickNode.
+        // Votre clé API a été ajoutée.
+        `https://VOTRE_ENDPOINT_QUICKNODE.polygon-mainnet.discover.quiknode.pro/${quickNodeKey}/`
     ]
 };
