@@ -10,20 +10,29 @@
 // #                                                                                 #
 // ###################################################################################
 
+// ###################################################################################
+// #                                                                                 #
+// #    !!!   MISE À JOUR DE SÉCURITÉ IMPORTANTE   !!!                               #
+// #                                                                                 #
+// #    Les clés sensibles (Clé API Gemini, Clé Privée, URLs RPC) ont été            #
+// #    retirées de ce fichier. Elles doivent maintenant être placées dans un        #
+// #    fichier nommé `.env` à la racine de votre projet. C'est une pratique         #
+// #    essentielle pour la sécurité.                                                #
+// #                                                                                 #
+// #    Créez un fichier `.env` et ajoutez les lignes suivantes :                    #
+// #                                                                                 #
+// #    GEMINI_API_KEY="AIzaSy...VotreClé...QiA"                                     #
+// #    PRIVATE_KEY="0x5492...VotreClé...c7"                                         #
+// #    RPC_URL_1="https://polygon-mainnet.infura.io/v3/VOTRE_ID_INFURA"             #
+// #    RPC_URL_2="https://polygon-mainnet.g.alchemy.com/v2/VOTRE_CLE_ALCHEMY"       #
+// #    RPC_URL_3="https://...votre-noeud-prive.../"                                 #
+// #                                                                                 #
+// #    NE PARTAGEZ JAMAIS VOTRE FICHIER `.env`.                                     #
+// #                                                                                 #
+// ###################################################################################
+
 module.exports = {
-    // Clé API pour l'API Gemini de Google
-    geminiApiKey: "AIzaSyB_9tOr19WcNySmJPUO5YGeFiJfcDFjQiA",
-
-    // Clé privée de votre portefeuille. Préfixée par '0x'. Ne la partagez JAMAIS.
-    privateKey: "0x54923eccb60f4baa86a6e004a280b14b3b1de39b3ca18538f85d8f90c78b52c7",
-
-    // URL des nœuds RPC pour se connecter à la blockchain Polygon MAINNET.
-    // Le bot sélectionnera automatiquement le plus rapide et basculera en cas de panne.
-    // Pour un avantage compétitif, remplacez ces points de terminaison publics par des
-    // points de terminaison privés/payants de fournisseurs comme Alchemy, QuickNode, ou Infura Pro.
-    rpcUrls: [
-        "https://polygon-mainnet.infura.io/v3/5b3855db1fd24f84991ce186dd62d9ec",
-        "https://polygon-mainnet.g.alchemy.com/v2/VOTRE_CLE_ALCHEMY_ICI", // IMPORTANT: Remplacez par votre véritable clé API Alchemy
-        "https://your-quicknode-endpoint.matic.discover.quiknode.pro/your-key/" // EXEMPLE: Remplacez par votre URL QuickNode
-    ],
+    // Ce fichier est intentionnellement laissé presque vide.
+    // La configuration de la stratégie de trading se trouve dans `src/config.json`.
+    // Les clés et les points de terminaison sont dans `.env`.
 };

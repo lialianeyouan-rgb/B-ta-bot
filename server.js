@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const cors = require('cors');
+require('dotenv').config(); // Load environment variables from .env file
 const { ArbitrageBot } = require('./src/ArbitrageBot');
 
 const app = express();

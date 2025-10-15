@@ -32,18 +32,25 @@ class ArbitrageBot {
     this.loadHistory(); // Load persistent history on startup
 
     // --- RPC Redundancy & Failover ---
-    // Filter out placeholder URLs before creating providers
-    const validRpcUrls = appConfig.rpcUrls.filter(url => !url.includes('your-api-key') && !url.includes('your-key') && !url.includes('VOTRE_CLE'));
-    if (validRpcUrls.length === 0) {
-        throw new Error("No valid RPC URLs configured in src/config.js. Please provide at least one valid URL.");
+    const rpcUrls = [
+        process.env.RPC_URL_1,
+        process.env.RPC_URL_2,
+        process.env.RPC_URL_3,
+    ].filter(Boolean); // Filter out any undefined URLs
+
+    if (rpcUrls.length === 0) {
+        throw new Error("No RPC URLs configured in .env file. Please provide at least one (e.g., RPC_URL_1).");
     }
-    this.addLog(`Initializing with ${validRpcUrls.length} RPC endpoints for performance and redundancy.`);
-    const providers = validRpcUrls.map(url => new ethers.JsonRpcProvider(url));
-    this.provider = new ethers.FallbackProvider(providers, 1); // Quorum of 1: use any single responsive provider
-    this.rpcStatus = validRpcUrls.map(url => ({ url, latency: null, status: 'pending', isActive: false }));
+    this.addLog(`Initializing with ${rpcUrls.length} RPC endpoints for performance and redundancy.`);
+    const providers = rpcUrls.map(url => new ethers.JsonRpcProvider(url));
+    this.provider = new ethers.FallbackProvider(providers, 1);
+    this.rpcStatus = rpcUrls.map(url => ({ url, latency: null, status: 'pending', isActive: false }));
     // --- End RPC Upgrade ---
     
-    this.wallet = new ethers.Wallet(appConfig.privateKey, this.provider);
+    if (!process.env.PRIVATE_KEY) {
+        throw new Error("PRIVATE_KEY is not defined in .env file.");
+    }
+    this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY, this.provider);
     this.flashbotsExecutor = null;
   }
 
