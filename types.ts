@@ -1,10 +1,10 @@
-export type Strategy = 'pairwise' | 'triangular';
+export type Strategy = 'flashloan-triangular' | 'flashloan-pairwise-interdex';
 export type Sentiment = 'bullish' | 'bearish' | 'neutral';
 
 export interface TokenConfig {
   symbol: string;
   minSpread: number;
-  dexs: string[]; // Can be 2 for pairwise, 3 for triangular
+  dexs: string[]; // Can be 1 for triangular, 2 for pairwise-interdex
   chain: string;
   strategy: Strategy;
   addresses: { [key: string]: string }; // e.g., tokenA, tokenB, tokenC
@@ -13,6 +13,11 @@ export interface TokenConfig {
 export interface BotConfig {
   tokens: TokenConfig[];
   pSuccessThreshold: number;
+  flashLoan: {
+      provider: string;
+      fee: number; // e.g., 0.0009 for 0.09%
+      contractAddress: string;
+  };
   riskManagement: {
       dailyLossThreshold: number; // as a percentage, e.g., 0.02 for 2%
       cooldownMinutes: number;
@@ -31,10 +36,12 @@ export interface Opportunity {
   spread: number;
   liquidity: number;
   pSuccess?: number;
-  optimalSize?: number;
+  optimalSize?: number; // For classic arbitrage
+  loanAmount?: number; // For flash loan arbitrage
   rationale?: string;
   useFlashbots?: boolean;
   timestamp: number;
+  similarPastTrades?: string;
 }
 
 export interface Trade {
@@ -45,22 +52,18 @@ export interface Trade {
     profit: number;
     timestamp: number;
     postMortem?: string; // Gemini's post-trade analysis
-    similarPastTrades?: string; // Analysis from vector memory
+    txHash?: string;
 }
 
 export type BotStatus = 'running' | 'stopped' | 'error' | 'paused';
 
-export type View = 'dashboard' | 'configuration' | 'history' | 'backtesting';
+export type View = 'dashboard' | 'configuration' | 'history' | 'logs';
 
-export interface BacktestResult {
-    summary: {
-        totalPnl: number;
-        totalTrades: number;
-        successRate: number;
-        startDate: string;
-        endDate: string;
-    };
-    trades: Trade[];
+export interface RpcStatus {
+    url: string;
+    latency: number | null;
+    status: 'online' | 'offline' | 'pending';
+    isActive: boolean;
 }
 
 export interface UseArbitrageBot {
@@ -72,6 +75,7 @@ export interface UseArbitrageBot {
     config: BotConfig;
     strategicAdvice: string | null;
     marketSentiment: MarketSentiment | null;
+    rpcStatus: RpcStatus[];
     stats: {
         totalPnl: number;
         tradesToday: number;
@@ -79,8 +83,5 @@ export interface UseArbitrageBot {
         gasPriceGwei: string;
         volatility: string;
     };
-    backtestResults: BacktestResult | null;
-    isBacktesting: boolean;
     updateConfig: (newConfig: BotConfig) => void;
-    runBacktest: (startDate: string, endDate: string) => Promise<void>;
 }

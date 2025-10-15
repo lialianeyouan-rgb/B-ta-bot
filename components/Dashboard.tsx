@@ -52,7 +52,7 @@ const OpportunitiesTable: React.FC<{ opportunities: Opportunity[] }> = ({ opport
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Strategy</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Spread</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">P(Success)</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Optimal Size</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Size / Loan</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">DEXs</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Execution</th>
                     </tr>
@@ -65,7 +65,9 @@ const OpportunitiesTable: React.FC<{ opportunities: Opportunity[] }> = ({ opport
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 capitalize">{opp.strategy}</td>
                                 <td className={`px-6 py-4 whitespace-nowrap text-sm ${opp.spread > opp.token.minSpread ? 'text-green-400' : 'text-gray-300'}`}>{(opp.spread * 100).toFixed(3)}%</td>
                                 <td className={`px-6 py-4 whitespace-nowrap text-sm ${opp.pSuccess && opp.pSuccess > 0.6 ? 'text-green-400' : 'text-yellow-400'}`}>{(opp.pSuccess ? opp.pSuccess * 100 : 0).toFixed(2)}%</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{opp.optimalSize?.toFixed(4)} ETH</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                    {opp.loanAmount ? `${opp.loanAmount.toFixed(4)} ETH` : (opp.optimalSize ? `${opp.optimalSize.toFixed(4)} ETH` : 'N/A')}
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{opp.token.dexs.join(' -> ')}</td>
                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                     {opp.useFlashbots ? (
@@ -79,7 +81,8 @@ const OpportunitiesTable: React.FC<{ opportunities: Opportunity[] }> = ({ opport
                                 <tr>
                                     <td colSpan={7} className="px-6 py-4 bg-gray-900/50">
                                         <div className="text-sm text-gray-300">
-                                            <span className="font-semibold text-blue-400">Gemini Rationale:</span> {opp.rationale || 'No analysis provided.'}
+                                            <p><span className="font-semibold text-blue-400">Gemini Rationale:</span> {opp.rationale || 'No analysis provided.'}</p>
+                                            <p className="mt-2"><span className="font-semibold text-purple-400">Memory Context:</span> {opp.similarPastTrades || 'No similar trades found.'}</p>
                                         </div>
                                     </td>
                                 </tr>

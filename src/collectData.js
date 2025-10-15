@@ -1,7 +1,8 @@
 const { ethers } = require('ethers');
 const { GoogleGenAI, Type } = require('@google/genai');
+const appConfig = require('./config'); // Use the new config file
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: appConfig.geminiApiKey });
 
 const IUniswapV2PairABI = [
     'function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)',
@@ -12,13 +13,15 @@ const IUniswapV2FactoryABI = [
     'function getPair(address tokenA, address tokenB) external view returns (address pair)',
 ];
 
-// Simplified for demonstration. Real implementation would need more complex address management.
 const DEX_CONFIG = {
-    'QuickSwap': { factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32' },
-    'Sushiswap': { factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4' }
+    'QuickSwap': { factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32', router: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff' },
+    'Sushiswap': { factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', router: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506' },
+    'DFYN': { factory: '0xEb6330c2d584E523c2325c3451B42551e6eb5324', router: '0xA102072A4C07F06EC3B4900FDC4C7B80b6c57429' },
+    'ApeSwap': { factory: '0xCf083Be4164828F00Cae704EC15a36D711491284', router: '0xC0788A3aD43d79aa53541c3223E44293D76b3258' },
+    // NOTE: DODO uses a Proactive Market Maker (PMM) model, which is not a Uniswap V2 fork.
+    // Integrating DODO would require a custom data collection logic and different ABIs.
+    // 'DODO': { factory: '...', router: '...' } 
 };
-
-const pairCache = new Map();
 
 async function getPriceFromPair(pairAddress, provider) {
     if (!pairAddress || pairAddress === ethers.ZeroAddress) return null;
@@ -30,75 +33,116 @@ async function getPriceFromPair(pairAddress, provider) {
         ]);
         const { reserve0, reserve1 } = reserves;
         if (reserve0 === 0n || reserve1 === 0n) return null;
-        // Price is always reserve1 / reserve0. The calling function must handle token order.
-        return { price: Number(reserve1) / Number(reserve0), reserve0, reserve1, token0 };
-    } catch(e) {
+        return { reserve0, reserve1, token0Address: token0 };
+    } catch (e) {
+        console.error(`Could not fetch price from pair ${pairAddress}: ${e.message}`);
         return null;
     }
 }
 
-async function getOpportunities(config, provider) {
-    let opportunities = [];
-
-    // Pairwise Arbitrage
-    for (const token of config.tokens.filter(t => t.strategy === 'pairwise')) {
-        const [dex1Name, dex2Name] = token.dexs;
-        const dex1 = DEX_CONFIG[dex1Name];
-        const dex2 = DEX_CONFIG[dex2Name];
-        if (!dex1 || !dex2) continue;
-
-        const factory1 = new ethers.Contract(dex1.factory, IUniswapV2FactoryABI, provider);
-        const factory2 = new ethers.Contract(dex2.factory, IUniswapV2FactoryABI, provider);
-        
-        const tokenA = token.addresses.tokenA;
-        const tokenB = token.addresses.tokenB;
-
-        const [pair1Addr, pair2Addr] = await Promise.all([
-            factory1.getPair(tokenA, tokenB),
-            factory2.getPair(tokenA, tokenB),
-        ]);
-
-        const [data1, data2] = await Promise.all([
-             getPriceFromPair(pair1Addr, provider),
-             getPriceFromPair(pair2Addr, provider)
-        ]);
-        
-        if (!data1 || !data2) continue;
-
-        const price1 = data1.token0.toLowerCase() === tokenA.toLowerCase() ? data1.price : 1 / data1.price;
-        const price2 = data2.token0.toLowerCase() === tokenA.toLowerCase() ? data2.price : 1 / data2.price;
-        
-        const spread = Math.abs(price1 - price2) / Math.max(price1, price2);
-
-        if (spread > token.minSpread) {
-            opportunities.push({
-                id: `${token.symbol}-${Date.now()}`,
-                token: token,
-                strategy: 'pairwise',
-                spread: spread,
-                liquidity: 1, // Placeholder
-                timestamp: Date.now(),
-            });
-        }
-    }
+async function getTriangularOpportunities(token, provider) {
+    const [dexName] = token.dexs;
+    const dex = DEX_CONFIG[dexName];
+    if (!dex) return null;
     
-    // NOTE: Triangular Arbitrage logic is complex. This is a simplified placeholder.
-    // A real implementation would need to check 3 pairs on a single DEX.
-    for (const token of config.tokens.filter(t => t.strategy === 'triangular')) {
-        if (Math.random() < 0.05) { // Simulate finding a rare triangular opportunity
-             opportunities.push({
-                id: `${token.symbol}-${Date.now()}`,
-                token: token,
-                strategy: 'triangular',
-                spread: 0.01 + Math.random() * 0.01,
-                liquidity: 1,
-                timestamp: Date.now(),
-            });
-        }
-    }
+    const factory = new ethers.Contract(dex.factory, IUniswapV2FactoryABI, provider);
+    const { tokenA, tokenB, tokenC } = token.addresses;
 
-    return opportunities;
+    const [pairAB_addr, pairBC_addr, pairCA_addr] = await Promise.all([
+        factory.getPair(tokenA, tokenB),
+        factory.getPair(tokenB, tokenC),
+        factory.getPair(tokenC, tokenA)
+    ]);
+
+    const [pairAB_data, pairBC_data, pairCA_data] = await Promise.all([
+        getPriceFromPair(pairAB_addr, provider),
+        getPriceFromPair(pairBC_addr, provider),
+        getPriceFromPair(pairCA_addr, provider),
+    ]);
+    
+    if (!pairAB_data || !pairBC_data || !pairCA_data) return null;
+
+    const priceAB = pairAB_data.token0Address.toLowerCase() === tokenA.toLowerCase() ? Number(pairAB_data.reserve1) / Number(pairAB_data.reserve0) : Number(pairAB_data.reserve0) / Number(pairAB_data.reserve1);
+    const priceBC = pairBC_data.token0Address.toLowerCase() === tokenB.toLowerCase() ? Number(pairBC_data.reserve1) / Number(pairBC_data.reserve0) : Number(pairBC_data.reserve0) / Number(pairBC_data.reserve1);
+    const priceCA = pairCA_data.token0Address.toLowerCase() === tokenC.toLowerCase() ? Number(pairCA_data.reserve1) / Number(pairCA_data.reserve0) : Number(pairCA_data.reserve0) / Number(pairCA_data.reserve1);
+
+    // Formula: (1 / priceAB) * (1 / priceBC) * priceCA should be > 1 for profit
+    const arbitrageRatio = (1 / priceAB) * (1 / priceBC) * priceCA;
+    const spread = Math.abs(1 - arbitrageRatio);
+
+    if (arbitrageRatio > (1 + token.minSpread)) {
+         return {
+            id: `${token.symbol}-${Date.now()}`,
+            token: token,
+            strategy: token.strategy,
+            spread: spread,
+            liquidity: 1, // Placeholder
+            timestamp: Date.now(),
+        };
+    }
+    return null;
 }
+
+async function getPairwiseInterDEXOpportunities(token, provider) {
+    const [dex1Name, dex2Name] = token.dexs;
+    const dex1 = DEX_CONFIG[dex1Name];
+    const dex2 = DEX_CONFIG[dex2Name];
+    if (!dex1 || !dex2) return null;
+
+    const factory1 = new ethers.Contract(dex1.factory, IUniswapV2FactoryABI, provider);
+    const factory2 = new ethers.Contract(dex2.factory, IUniswapV2FactoryABI, provider);
+
+    const { tokenA, tokenB } = token.addresses;
+
+    const [pair1_addr, pair2_addr] = await Promise.all([
+        factory1.getPair(tokenA, tokenB),
+        factory2.getPair(tokenA, tokenB)
+    ]);
+
+    const [pair1_data, pair2_data] = await Promise.all([
+        getPriceFromPair(pair1_addr, provider),
+        getPriceFromPair(pair2_addr, provider)
+    ]);
+    
+    if (!pair1_data || !pair2_data) return null;
+    
+    const price1 = pair1_data.token0Address.toLowerCase() === tokenA.toLowerCase() ? Number(pair1_data.reserve1) / Number(pair1_data.reserve0) : Number(pair1_data.reserve0) / Number(pair1_data.reserve1);
+    const price2 = pair2_data.token0Address.toLowerCase() === tokenA.toLowerCase() ? Number(pair2_data.reserve1) / Number(pair2_data.reserve0) : Number(pair2_data.reserve0) / Number(pair2_data.reserve1);
+    
+    const spread = Math.abs(price2 - price1) / Math.min(price1, price2);
+
+    if (spread > token.minSpread) {
+        // We need to determine which way the arbitrage goes (buy on DEX1 sell on DEX2, or vice versa)
+        // For simplicity, we create one opportunity and the executor/analyzer will know the path.
+        // A more advanced version would create two potential trades.
+        return {
+            id: `${token.symbol}-${Date.now()}`,
+            token: token,
+            strategy: token.strategy,
+            spread: spread,
+            liquidity: 1, // Placeholder
+            timestamp: Date.now(),
+        };
+    }
+    return null;
+}
+
+
+async function getOpportunities(config, provider) {
+    const promises = config.tokens.map(token => {
+        switch (token.strategy) {
+            case 'flashloan-triangular':
+                return getTriangularOpportunities(token, provider);
+            case 'flashloan-pairwise-interdex':
+                return getPairwiseInterDEXOpportunities(token, provider);
+            default:
+                return null;
+        }
+    });
+    const results = await Promise.all(promises);
+    return results.filter(Boolean); // Filter out nulls
+}
+
 
 async function getMarketContext(provider) {
     try {
@@ -160,4 +204,4 @@ async function getSentimentAnalysis(tokens) {
 }
 
 
-module.exports = { getOpportunities, getMarketContext, getSentimentAnalysis };
+module.exports = { getOpportunities, getMarketContext, getSentimentAnalysis, DEX_CONFIG };

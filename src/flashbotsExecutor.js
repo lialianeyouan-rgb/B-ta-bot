@@ -6,7 +6,6 @@ class FlashbotsExecutor {
     this.flashbotsProvider = flashbotsProvider;
     this.wallet = wallet;
     this.provider = provider;
-    console.log("Flashbots Executor initialized in REAL mode.");
   }
   
   /**
@@ -18,21 +17,16 @@ class FlashbotsExecutor {
   static async create(provider, wallet) {
     const network = await provider.getNetwork();
     
-    // IMPORTANT: Flashbots is primarily for Ethereum Mainnet.
-    // Using it on other networks might not work or require different relay URLs.
-    // This chainID check is commented out for demonstration purposes on testnets/other chains.
-    // if (network.chainId !== 1n) {
-    //   throw new Error("Flashbots is officially supported on Ethereum Mainnet (ChainID 1).");
-    // }
-    
     // Using a random wallet for authentication is standard practice. It doesn't need funds.
     const authSigner = ethers.Wallet.createRandom();
     
+    // Note: Flashbots has different relay URLs for different networks.
+    // For Polygon, use the "matic" network name and a compatible relay.
     const flashbotsProvider = await FlashbotsBundleProvider.create(
       provider,
       authSigner,
-      "https://relay.flashbots.net",
-      network.name
+      "https://rpc.flashbots.net", // Correct relay for Polygon Mainnet
+      "matic" // Correct network name for Polygon
     );
     
     return new FlashbotsExecutor(flashbotsProvider, wallet, provider);
@@ -44,34 +38,25 @@ class FlashbotsExecutor {
    * @returns {Promise<object>} The result of the bundle submission.
    */
   async sendBundle(transaction) {
-    console.log("Attempting to send transaction via Flashbots bundle...");
-    
     if (!this.flashbotsProvider) {
       throw new Error("Flashbots provider is not initialized.");
     }
 
-    // 1. Sign the transaction
     const signedTx = await this.wallet.signTransaction(transaction);
     const bundle = [{ signedTransaction: signedTx }];
     const blockNumber = await this.provider.getBlockNumber();
 
-    // 2. Simulate the bundle
-    console.log(`Simulating Flashbots bundle for block ${blockNumber + 1}...`);
     try {
         const simulation = await this.flashbotsProvider.simulate(bundle, blockNumber + 1);
-        if ('error' in simulation) {
-            throw new Error(`Flashbots simulation error: ${simulation.error.message}`);
+        if ('error' in simulation || simulation.results[0].revert) {
+            const reason = simulation.results[0]?.revert || simulation.error?.message;
+            throw new Error(`Flashbots simulation failed: ${reason}`);
         }
-        if (simulation.results[0].revert) {
-            throw new Error(`Transaction will revert: ${simulation.results[0].revert}`);
-        }
-        console.log("Flashbots simulation successful.");
     } catch (e) {
         console.error(`Flashbots simulation failed: ${e.message}`);
-        throw e; // Propagate error
+        throw e;
     }
     
-    // 3. Send the bundle to the relay for the next block
     const flashbotsResponse = await this.flashbotsProvider.sendRawBundle(bundle, blockNumber + 1);
     
     if ('error' in flashbotsResponse) {
@@ -79,14 +64,11 @@ class FlashbotsExecutor {
     }
     
     const txHash = flashbotsResponse.bundleTransactions[0].hash;
-    console.log(`Flashbots bundle submitted. Awaiting inclusion... Tx Hash: ${txHash}`);
     
-    // In a real app, you would use flashbotsResponse.wait() to see if the bundle was included.
-    // For this implementation, we optimistically assume success upon submission.
+    // Return the hash and wait for it in the main loop
     return {
       success: true,
       txHash: txHash,
-      message: `Transaction sent via Flashbots bundle. Hash: ${txHash}`
     };
   }
 }

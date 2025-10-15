@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { Opportunity, Trade, BotConfig, UseArbitrageBot, MarketSentiment, BacktestResult } from '../types';
+import type { Opportunity, Trade, BotConfig, UseArbitrageBot, MarketSentiment, RpcStatus } from '../types';
 
 const API_BASE_URL = 'http://localhost:3001';
 
@@ -9,12 +9,11 @@ export const useArbitrageBot = (): UseArbitrageBot => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [tradeHistory, setTradeHistory] = useState<Trade[]>([]);
   const [logs, setLogs] = useState<string[]>(['Connecting to bot backend...']);
-  const [config, setConfig] = useState<BotConfig>({ tokens: [], pSuccessThreshold: 0, riskManagement: { dailyLossThreshold: 0.02, cooldownMinutes: 60 } });
+  const [config, setConfig] = useState<BotConfig>({ tokens: [], pSuccessThreshold: 0, flashLoan: { provider: '', fee: 0, contractAddress: '' }, riskManagement: { dailyLossThreshold: 0.02, cooldownMinutes: 60 } });
   const [stats, setStats] = useState({ totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low' });
   const [strategicAdvice, setStrategicAdvice] = useState<string | null>(null);
   const [marketSentiment, setMarketSentiment] = useState<MarketSentiment | null>(null);
-  const [backtestResults, setBacktestResults] = useState<BacktestResult | null>(null);
-  const [isBacktesting, setIsBacktesting] = useState(false);
+  const [rpcStatus, setRpcStatus] = useState<RpcStatus[]>([]);
 
   const ws = useRef<WebSocket | null>(null);
 
@@ -25,14 +24,15 @@ export const useArbitrageBot = (): UseArbitrageBot => {
   useEffect(() => {
     const fetchInitialData = async () => {
         try {
-            const [statusRes, configRes, historyRes, sentimentRes] = await Promise.all([
+            const [statusRes, configRes, historyRes, sentimentRes, rpcRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/status`),
                 fetch(`${API_BASE_URL}/api/config`),
                 fetch(`${API_BASE_URL}/api/history`),
                 fetch(`${API_BASE_URL}/api/sentiment`),
+                fetch(`${API_BASE_URL}/api/rpc-status`),
             ]);
             
-            if (!statusRes.ok || !configRes.ok || !historyRes.ok || !sentimentRes.ok) {
+            if (!statusRes.ok || !configRes.ok || !historyRes.ok || !sentimentRes.ok || !rpcRes.ok) {
                  throw new Error('Failed to fetch initial data from backend.');
             }
 
@@ -40,6 +40,7 @@ export const useArbitrageBot = (): UseArbitrageBot => {
             const configData = await configRes.json();
             const historyData = await historyRes.json();
             const sentimentData = await sentimentRes.json();
+            const rpcData = await rpcRes.json();
 
             setIsRunning(statusData.isRunning);
             setStatusMessage(statusData.statusMessage);
@@ -49,8 +50,10 @@ export const useArbitrageBot = (): UseArbitrageBot => {
             setConfig(configData);
             setTradeHistory(historyData);
             setMarketSentiment(sentimentData);
+            setRpcStatus(rpcData);
         } catch (error) {
-            addLog(`Error connecting to backend: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            addLog(`Error connecting to backend: ${errorMessage}`);
             console.error(error);
         }
     };
@@ -90,6 +93,9 @@ export const useArbitrageBot = (): UseArbitrageBot => {
         case 'sentiment_update':
           setMarketSentiment(message.data);
           break;
+        case 'rpc_status_update':
+          setRpcStatus(message.data);
+          break;
         case 'risk_triggered':
             addLog(`RISK MANAGEMENT TRIGGERED: ${message.data}`);
             setStatusMessage(`Paused - Risk Limit Hit`);
@@ -118,33 +124,11 @@ export const useArbitrageBot = (): UseArbitrageBot => {
             addLog('Failed to save configuration override.');
         }
     } catch(err) {
-        addLog(`Error updating config: ${err.message}`);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        addLog(`Error updating config: ${errorMessage}`);
     }
   }, [addLog]);
 
-  const runBacktest = useCallback(async (startDate: string, endDate: string) => {
-    setIsBacktesting(true);
-    setBacktestResults(null);
-    addLog(`Starting backtest from ${startDate} to ${endDate}...`);
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/backtest`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ startDate, endDate, config }),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.message || 'Backtest failed on the server.');
-        }
-        const results = await response.json();
-        setBacktestResults(results);
-        addLog('Backtest completed successfully.');
-    } catch (err) {
-        addLog(`Backtest error: ${err.message}`);
-    } finally {
-        setIsBacktesting(false);
-    }
-  }, [addLog, config]);
 
-  return { isRunning, statusMessage, opportunities, tradeHistory, logs, config, stats, strategicAdvice, updateConfig, marketSentiment, backtestResults, isBacktesting, runBacktest };
+  return { isRunning, statusMessage, opportunities, tradeHistory, logs, config, stats, strategicAdvice, updateConfig, marketSentiment, rpcStatus };
 };

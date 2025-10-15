@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import type { UseArbitrageBot, BotConfig, TokenConfig, Strategy } from '../types';
+import type { UseArbitrageBot, BotConfig, TokenConfig, Strategy, RpcStatus } from '../types';
 import { AiInsightCard } from './AiInsightCard';
+
+const MainnetWarning = () => (
+    <div className="p-4 rounded-lg bg-orange-900/50 border border-orange-600 text-orange-200 animate-pulse">
+        <h4 className="font-bold text-lg">DANGER: MAINNET IS ACTIVE</h4>
+        <p className="text-sm mt-2">
+            The bot is configured to run on the <strong>Polygon Mainnet</strong>. All actions, including trades, will use <strong>REAL FUNDS</strong> from your wallet. Double-check all configurations. Any losses will be irreversible.
+        </p>
+    </div>
+);
 
 const SecurityWarning = () => (
     <div className="p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-300">
@@ -12,10 +21,51 @@ const SecurityWarning = () => (
     </div>
 );
 
+const FlashLoanWarning = () => (
+    <div className="p-4 rounded-lg bg-purple-900/50 border border-purple-700 text-purple-300">
+        <h4 className="font-bold">EXTREME RISK: Live Flash Loan Strategy Enabled</h4>
+        <p className="text-sm mt-2">
+            You have configured a flash loan strategy. The bot will attempt to execute <strong>real transactions</strong> against your deployed smart contract. A bug in your contract or an error in the bot's logic could lead to a <strong>total and irreversible loss of funds</strong>. Ensure your contract is professionally audited and you fully understand the risks before proceeding.
+        </p>
+    </div>
+);
+
+const RpcMonitor: React.FC<{ rpcStatus: RpcStatus[] }> = ({ rpcStatus }) => {
+    return (
+        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-semibold mb-4">RPC Node Monitor</h3>
+            <p className="text-xs text-gray-400 mb-4">The bot automatically uses the fastest available RPC and provides failover. Status is updated every minute.</p>
+            <div className="space-y-3">
+                {rpcStatus.map((rpc, index) => {
+                    const statusColor = rpc.status === 'online' ? 'text-green-400' : 'text-red-400';
+                    const latencyColor = rpc.latency && rpc.latency < 100 ? 'text-green-400' : rpc.latency && rpc.latency < 300 ? 'text-yellow-400' : 'text-red-400';
+
+                    return (
+                        <div key={index} className="flex items-center justify-between bg-gray-700/50 p-3 rounded-md">
+                            <div className="flex items-center space-x-3">
+                                <span className={`font-bold capitalize ${statusColor}`}>
+                                    {rpc.status}
+                                </span>
+                                <span className="text-sm font-mono text-gray-300 truncate">{rpc.url}</span>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                {rpc.isActive && <span className="px-2 py-1 text-xs font-bold text-white bg-blue-600 rounded-full">ACTIVE</span>}
+                                <span className={`text-sm font-semibold ${latencyColor}`}>
+                                    {rpc.latency !== null ? `${rpc.latency} ms` : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 
 export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
   const [localConfig, setLocalConfig] = useState<BotConfig>(bot.config);
-  const [newToken, setNewToken] = useState({ symbol: '', minSpread: 0, dexs: '', chain: 'Polygon', strategy: 'pairwise', addresses: '' });
+  const [newToken, setNewToken] = useState({ symbol: '', minSpread: 0, dexs: '', chain: 'Polygon', strategy: 'flashloan-triangular' as Strategy, addresses: '' });
   const [manualOverride, setManualOverride] = useState(false);
   
   useEffect(() => {
@@ -29,11 +79,13 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
     setManualOverride(false);
   };
   
-  const handleGeneralConfigChange = (field: keyof BotConfig | keyof BotConfig['riskManagement'], value: any) => {
+  const handleGeneralConfigChange = (field: keyof BotConfig | keyof BotConfig['riskManagement'] | keyof BotConfig['flashLoan'], value: any) => {
     if (field in localConfig.riskManagement) {
         setLocalConfig(prev => ({ ...prev, riskManagement: { ...prev.riskManagement, [field]: value } }));
+    } else if (field in localConfig.flashLoan) {
+        setLocalConfig(prev => ({ ...prev, flashLoan: { ...prev.flashLoan, [field]: value } }));
     } else {
-        setLocalConfig(prev => ({ ...prev, [field]: value }));
+        setLocalConfig(prev => ({ ...prev, [field]: value as any }));
     }
   }
 
@@ -72,11 +124,11 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
             minSpread: newToken.minSpread / 100,
             dexs: dexsArray,
             chain: newToken.chain,
-            strategy: newToken.strategy as Strategy,
+            strategy: newToken.strategy,
             addresses: addressesObj
         };
         setLocalConfig(prev => ({...prev, tokens: [...prev.tokens, tokenToAdd]}));
-        setNewToken({ symbol: '', minSpread: 0, dexs: '', chain: 'Polygon', strategy: 'pairwise', addresses: '' });
+        setNewToken({ symbol: '', minSpread: 0, dexs: '', chain: 'Polygon', strategy: 'flashloan-triangular', addresses: '' });
     } catch(e) {
         alert("Failed to add token. Ensure addresses are in valid JSON format.");
     }
@@ -84,6 +136,7 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
   
   const inputClasses = "mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-800 disabled:text-gray-400";
   const smallInputClasses = "bg-gray-600 border border-gray-500 rounded p-2 text-sm w-full disabled:bg-gray-700 disabled:text-gray-400";
+  const hasFlashLoanStrategy = localConfig.tokens.some(t => t.strategy.includes('flashloan'));
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -97,10 +150,14 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
             </label>
         </div>
       </div>
-
+      
+      <MainnetWarning />
       <SecurityWarning />
+      {hasFlashLoanStrategy && <FlashLoanWarning />}
       <AiInsightCard advice={bot.strategicAdvice} />
       
+      <RpcMonitor rpcStatus={bot.rpcStatus} />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-4">
             <h3 className="text-lg font-semibold">General Settings</h3>
@@ -108,6 +165,16 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                 <label htmlFor="pSuccessThreshold" className="block text-sm font-medium text-gray-300">P(Success) Threshold (%)</label>
                 <input type="number" id="pSuccessThreshold" value={(localConfig.pSuccessThreshold * 100).toFixed(1)} onChange={(e) => handleGeneralConfigChange('pSuccessThreshold', parseFloat(e.target.value) / 100)} className={inputClasses} disabled={!manualOverride} />
                 <p className="mt-2 text-xs text-gray-400">Bot auto-adjusts this. Override to set manually.</p>
+            </div>
+             <div>
+                <label htmlFor="flashLoanFee" className="block text-sm font-medium text-gray-300">Flash Loan Fee (%)</label>
+                <input type="number" id="flashLoanFee" value={(localConfig.flashLoan.fee * 100).toFixed(4)} onChange={(e) => handleGeneralConfigChange('fee', parseFloat(e.target.value) / 100)} className={inputClasses} disabled={!manualOverride} />
+                <p className="mt-2 text-xs text-gray-400">Fee for the flash loan provider (e.g., Aave V3 is ~0.09%).</p>
+            </div>
+            <div>
+                <label htmlFor="flashLoanContract" className="block text-sm font-medium text-gray-300">Flash Loan Contract Address</label>
+                <input type="text" id="flashLoanContract" value={localConfig.flashLoan.contractAddress} className={inputClasses} disabled />
+                <p className="mt-2 text-xs text-gray-400">The audited smart contract used for executing flash loans.</p>
             </div>
         </div>
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-4">
@@ -134,8 +201,8 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                     <input type="text" value={token.symbol} onChange={(e) => handleTokenChange(index, 'symbol', e.target.value)} placeholder="Symbol" className={smallInputClasses} disabled={!manualOverride}/>
                     <input type="text" value={token.chain} onChange={(e) => handleTokenChange(index, 'chain', e.target.value)} placeholder="Chain" className={smallInputClasses} disabled={!manualOverride}/>
                     <select value={token.strategy} onChange={(e) => handleTokenChange(index, 'strategy', e.target.value)} className={smallInputClasses} disabled={!manualOverride}>
-                        <option value="pairwise">Pairwise</option>
-                        <option value="triangular">Triangular</option>
+                        <option value="flashloan-triangular">Flashloan Triangular</option>
+                        <option value="flashloan-pairwise-interdex">Flashloan Pairwise Inter-DEX</option>
                     </select>
                     <input type="number" value={token.minSpread * 100} onChange={(e) => handleTokenChange(index, 'minSpread', e.target.value)} placeholder="Min Spread %" className={smallInputClasses} disabled={!manualOverride}/>
                  </div>
@@ -152,9 +219,9 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                      <input type="text" value={newToken.symbol} onChange={(e) => setNewToken(p => ({...p, symbol: e.target.value}))} placeholder="Symbol" className={smallInputClasses}/>
                      <input type="text" value={newToken.chain} onChange={(e) => setNewToken(p => ({...p, chain: e.target.value}))} placeholder="Chain" className={smallInputClasses}/>
-                     <select value={newToken.strategy} onChange={(e) => setNewToken(p => ({...p, strategy: e.target.value}))} className={smallInputClasses}>
-                        <option value="pairwise">Pairwise</option>
-                        <option value="triangular">Triangular</option>
+                      <select value={newToken.strategy} onChange={(e) => setNewToken(p => ({...p, strategy: e.target.value as Strategy}))} className={smallInputClasses}>
+                        <option value="flashloan-triangular">Flashloan Triangular</option>
+                        <option value="flashloan-pairwise-interdex">Flashloan Pairwise Inter-DEX</option>
                     </select>
                      <input type="number" value={newToken.minSpread} onChange={(e) => setNewToken(p => ({...p, minSpread: parseFloat(e.target.value)}))} placeholder="Min Spread %" className={smallInputClasses}/>
                  </div>

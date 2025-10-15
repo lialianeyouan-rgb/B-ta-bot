@@ -1,4 +1,4 @@
-require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -81,19 +81,9 @@ app.get('/api/sentiment', (req, res) => {
     res.json(bot.getMarketSentiment());
 });
 
-app.post('/api/backtest', async (req, res) => {
-    const { startDate, endDate, config } = req.body;
-    if (!startDate || !endDate || !config) {
-        return res.status(400).json({ message: 'Missing parameters for backtest.' });
-    }
-    try {
-        const results = await bot.runBacktest(startDate, endDate, config);
-        res.json(results);
-    } catch(e) {
-        res.status(500).json({ message: e.message });
-    }
+app.get('/api/rpc-status', (req, res) => {
+    res.json(bot.getRpcStatus());
 });
-
 
 server.listen(port, () => {
   console.log(`Arbitrage Bot backend running on http://localhost:${port}`);

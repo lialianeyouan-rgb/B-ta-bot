@@ -1,41 +1,110 @@
 const { ethers } = require('ethers');
-const { generateTransactionPayload } = require('./geminiAnalyzer');
-const { FlashbotsExecutor } = require('./flashbotsExecutor');
+const { DEX_CONFIG } = require('./collectData');
 
-async function sendTransaction(wallet, trade, flashbotsExecutor) {
-  // --- IMPORTANT SAFETY NOTICE ---
-  // The generation of transaction payloads by an AI is an advanced and potentially risky feature.
-  // For this demonstration, we are NOT sending real transactions based on AI-generated data.
-  // Instead, we simulate the outcome to showcase the bot's decision-making process.
-  
-  try {
-    // 1. Get the theoretical payload from Gemini (for logging/analysis purposes)
-    await generateTransactionPayload(trade, wallet.address);
-    
-    // 2. Simulate the transaction outcome
-    const success = Math.random() < (trade.pSuccess || 0.7); // Simulate success based on AI's probability
-    
-    if (success) {
-      // Simulate a realistic profit based on spread and size, minus some simulated slippage/gas
-      const slippage = 0.001; // 0.1%
-      const gasCost = 0.005; // Simulated gas cost in ETH
-      const profit = (trade.optimalSize * (trade.spread - slippage)) - gasCost;
-      
-      const message = trade.useFlashbots && flashbotsExecutor 
-        ? "Simulated successful execution via Flashbots." 
-        : "Simulated successful standard transaction.";
+// --- IMPORTANT SAFETY NOTICE ---
+// This file executes REAL transactions on the blockchain.
+// It is NOT A SIMULATION. A bug or misconfiguration can lead to a
+// total and irreversible loss of funds.
+//
+// FLASH LOAN WARNING: Real flash loan arbitrage requires a custom, highly-optimized,
+// and multiple-times-audited smart contract. The functions called in this script
+// are ASSUMED to exist on your contract. If they don't, transactions will fail,
+// but you will still pay gas fees. A bug in your contract could be exploited
+// and lead to a 100% loss of funds.
+//
+// --- PROCEED WITH EXTREME CAUTION ---
+
+const FLASH_LOAN_ABI = [
+    "function executeFlashLoanTriangular(address tokenA, address tokenB, address tokenC, address dex, uint256 loanAmount)",
+    "function executeFlashLoanPairwiseInterDEX(address tokenA, address tokenB, address dex1, address dex2, uint256 loanAmount)"
+];
+
+
+async function executeArbitrage(wallet, provider, trade, config, flashbotsExecutor) {
+    let tx;
+    const { gasPrice } = (await provider.getFeeData());
+    const flashLoanContract = new ethers.Contract(config.flashLoan.contractAddress, FLASH_LOAN_ABI, wallet);
+    const loanAmountWei = ethers.parseEther(trade.loanAmount.toString());
+
+    try {
+        if (trade.strategy === 'flashloan-triangular') {
+            const dexRouter = DEX_CONFIG[trade.token.dexs[0]].router;
+             tx = await flashLoanContract.executeFlashLoanTriangular.populateTransaction(
+                trade.token.addresses.tokenA,
+                trade.token.addresses.tokenB,
+                trade.token.addresses.tokenC,
+                dexRouter,
+                loanAmountWei,
+                { gasPrice, gasLimit: 800000 }
+            );
+        } else if (trade.strategy === 'flashloan-pairwise-interdex') {
+            const dex1Router = DEX_CONFIG[trade.token.dexs[0]].router;
+            const dex2Router = DEX_CONFIG[trade.token.dexs[1]].router;
+            tx = await flashLoanContract.executeFlashLoanPairwiseInterDEX.populateTransaction(
+                trade.token.addresses.tokenA,
+                trade.token.addresses.tokenB,
+                dex1Router,
+                dex2Router,
+                loanAmountWei,
+                { gasPrice, gasLimit: 1200000 } // Higher gas limit for inter-dex
+            );
+        } else {
+            throw new Error(`Unsupported strategy for execution: ${trade.strategy}`);
+        }
         
-      return { success: true, profit: Math.max(0, profit), message: message };
-    } else {
-      // Simulate a failure
-      const reasons = ["Transaction reverted due to high slippage.", "Front-run by MEV bot.", "Gas price spiked, making trade unprofitable."];
-      const message = `Simulated failure: ${reasons[Math.floor(Math.random() * reasons.length)]}`;
-      return { success: false, profit: -0.005, message: message }; // Simulate small loss for gas
+        tx.chainId = (await provider.getNetwork()).chainId;
+        tx.nonce = await provider.getTransactionCount(wallet.address);
+
+        let txResponse;
+        let txHash;
+
+        if (trade.useFlashbots && flashbotsExecutor) {
+            const bundleResponse = await flashbotsExecutor.sendBundle(tx);
+            // Flashbots response doesn't give a standard ethers response object,
+            // so we wait for the transaction hash it provides.
+            txHash = bundleResponse.txHash;
+        } else {
+            const signedTx = await wallet.signTransaction(tx);
+            txResponse = await provider.send(signedTx);
+            txHash = txResponse.hash;
+        }
+
+        console.log(`Transaction sent. Hash: ${txHash}. Waiting for receipt...`);
+        const receipt = await provider.waitForTransaction(txHash);
+
+        if (receipt.status === 1) {
+            // Transaction succeeded. Calculate profit.
+            const gasUsed = receipt.gasUsed;
+            const gasCost = parseFloat(ethers.formatEther(gasUsed * receipt.gasPrice));
+            let grossProfit = trade.loanAmount * (trade.spread - config.flashLoan.fee);
+            
+            return {
+                success: true,
+                profit: grossProfit - gasCost,
+                txHash: receipt.hash,
+                message: `SUCCESS: Trade executed on-chain.`
+            };
+        } else {
+            // Transaction failed (reverted).
+            const gasUsed = receipt.gasUsed;
+            const gasCost = parseFloat(ethers.formatEther(gasUsed * receipt.gasPrice));
+            return {
+                success: false,
+                profit: -gasCost,
+                txHash: receipt.hash,
+                message: `FAILED: Transaction reverted on-chain.`
+            };
+        }
+
+    } catch (e) {
+        console.error("Error during transaction execution:", e);
+        // Calculate gas cost if a transaction was actually sent and failed before receipt
+        if (e.receipt) {
+             const gasCost = parseFloat(ethers.formatEther(e.receipt.gasUsed * e.receipt.gasPrice));
+             return { success: false, profit: -gasCost, txHash: e.receipt.hash, message: `Execution error: ${e.message}` };
+        }
+        return { success: false, profit: 0, txHash: null, message: `Execution error: ${e.message}` };
     }
-  } catch (e) {
-    console.error("Error during transaction simulation:", e);
-    return { success: false, profit: 0, message: `Simulation error: ${e.message}` };
-  }
 }
 
-module.exports = { sendTransaction };
+module.exports = { executeArbitrage };

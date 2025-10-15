@@ -1,10 +1,11 @@
 const { ethers } = require('ethers');
 const { getOpportunities, getMarketContext, getSentimentAnalysis } = require('./collectData');
-const { sendTransaction } = require('./transactionExecutor');
+const { executeArbitrage } = require('./transactionExecutor');
 const { analyzeOpportunity, analyzeTradeResult, suggestConfigChanges } = require('./geminiAnalyzer');
 const { FlashbotsExecutor } = require('./flashbotsExecutor');
 const { VectorStore } = require('./memory/vectorStore');
-const fs = require('fs');
+const appConfig = require('./config'); // Use the new config file
+const fs = 'fs';
 
 class ArbitrageBot {
   constructor(broadcast) {
@@ -13,22 +14,33 @@ class ArbitrageBot {
     this.statusMessage = "Initialized";
     this.opportunities = [];
     this.tradeHistory = [];
-    this.logs = ['Bot initialized with Gemini AI Engine v2.0.'];
-    this.config = JSON.parse(fs.readFileSync('./src/config.json', 'utf-8'));
+    this.logs = ['Bot initialized with Gemini AI Engine v2.1.'];
+    this.config = JSON.parse(require('fs').readFileSync('./src/config.json', 'utf-8'));
     this.stats = { totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low' };
     this.marketSentiment = { overall: 'neutral', tokens: {} };
     this.interval = null;
     this.adviceInterval = null;
     this.sentimentInterval = null;
+    this.rpcMonitorInterval = null;
     this.strategicAdvice = null;
     this.cooldownUntil = 0; // For risk management
 
     this.vectorStore = new VectorStore();
     this.tradeHistory.forEach(trade => this.vectorStore.addTrade(trade));
 
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-    this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-    this.provider = provider;
+    // --- RPC Redundancy & Failover ---
+    // Filter out placeholder URLs before creating providers
+    const validRpcUrls = appConfig.rpcUrls.filter(url => !url.includes('your-api-key') && !url.includes('your-key') && !url.includes('VOTRE_CLE'));
+    if (validRpcUrls.length === 0) {
+        throw new Error("No valid RPC URLs configured in src/config.js. Please provide at least one valid URL.");
+    }
+    this.addLog(`Initializing with ${validRpcUrls.length} RPC endpoints for performance and redundancy.`);
+    const providers = validRpcUrls.map(url => new ethers.JsonRpcProvider(url));
+    this.provider = new ethers.FallbackProvider(providers, 1); // Quorum of 1: use any single responsive provider
+    this.rpcStatus = validRpcUrls.map(url => ({ url, latency: null, status: 'pending', isActive: false }));
+    // --- End RPC Upgrade ---
+    
+    this.wallet = new ethers.Wallet(appConfig.privateKey, this.provider);
     this.flashbotsExecutor = null;
   }
 
@@ -63,14 +75,14 @@ class ArbitrageBot {
   }
   
   checkRiskManagement() {
-      const { dailyLossThreshold, cooldownMinutes } = this.config.riskManagement;
+      const { dailyLossThreshold, cooldownMinutes, capitalEth } = this.config.riskManagement;
       const today = new Date().toDateString();
       const pnlToday = this.tradeHistory
           .filter(t => new Date(t.timestamp).toDateString() === today)
           .reduce((sum, t) => sum + (t.profit || 0), 0);
       
-      // Assuming a capital of 10 ETH for threshold calculation. This should be configured.
-      const capital = 10; 
+      // Use configured capital. Fallback to 10 if not set.
+      const capital = capitalEth || 10; 
       const lossPercentage = Math.abs(pnlToday / capital);
 
       if (pnlToday < 0 && lossPercentage > dailyLossThreshold) {
@@ -83,6 +95,23 @@ class ArbitrageBot {
       return false;
   }
 
+  async monitorRpcStatus() {
+      const activeProvider = this.provider.provider; // The currently active provider in the FallbackProvider
+      
+      const statusPromises = this.rpcStatus.map(async (rpc) => {
+          const provider = new ethers.JsonRpcProvider(rpc.url);
+          const startTime = Date.now();
+          try {
+              await provider.getBlockNumber();
+              const latency = Date.now() - startTime;
+              return { ...rpc, latency, status: 'online', isActive: activeProvider.connection.url === rpc.url };
+          } catch (e) {
+              return { ...rpc, latency: null, status: 'offline', isActive: false };
+          }
+      });
+      this.rpcStatus = await Promise.all(statusPromises);
+      this.broadcast({ type: 'rpc_status_update', data: this.rpcStatus });
+  }
 
   async getStrategicUpdate() {
       if (this.tradeHistory.length < 5) return;
@@ -120,11 +149,15 @@ class ArbitrageBot {
       if (opportunities.length > 0) {
         this.addLog(`Found ${opportunities.length} potential opportunities. Analyzing with Gemini...`);
         
-        const fullContext = { ...marketContext, sentiment: this.marketSentiment };
+        const fullContext = { 
+            ...marketContext, 
+            sentiment: this.marketSentiment,
+            flashLoan: this.config.flashLoan
+        };
         const scoredPromises = opportunities.map(o => analyzeOpportunity(o, fullContext, this.vectorStore));
         const scored = await Promise.all(scoredPromises);
 
-        this.opportunities = [...scored, ...this.opportunities].slice(0, 20);
+        this.opportunities = [...scored.filter(s => s.pSuccess > 0), ...this.opportunities].slice(0, 20);
         this.broadcast({ type: 'opportunities_update', data: this.opportunities });
 
         const toTrade = scored.filter(t => t.pSuccess > this.config.pSuccessThreshold);
@@ -132,7 +165,7 @@ class ArbitrageBot {
 
         for (const trade of toTrade) {
           this.setStatus(true, `Executing ${trade.token.symbol}...`);
-          const result = await sendTransaction(this.wallet, trade, this.flashbotsExecutor);
+          const result = await executeArbitrage(this.wallet, this.provider, trade, this.config, this.flashbotsExecutor);
           
           const newTrade = {
               id: `trade-${trade.id}`,
@@ -141,17 +174,16 @@ class ArbitrageBot {
               status: result.success ? 'success' : 'failed',
               profit: result.profit,
               timestamp: Date.now(),
-              message: result.message
+              txHash: result.txHash,
           };
           this.tradeHistory.unshift(newTrade);
           this.vectorStore.addTrade(newTrade); // Add to long-term memory
-          this.addLog(`Trade ${trade.token.symbol}: ${newTrade.status.toUpperCase()}. PnL: ${result.profit.toFixed(4)} ETH.`);
+          this.addLog(`Trade ${trade.token.symbol}: ${newTrade.status.toUpperCase()}. PnL: ${result.profit.toFixed(6)} ETH. Hash: ${result.txHash}`);
           
           const postMortem = await analyzeTradeResult(newTrade);
           this.addLog(`Gemini Post-Mortem: ${postMortem}`);
           newTrade.postMortem = postMortem;
-          newTrade.similarPastTrades = trade.similarPastTrades; // Add memory context
-
+         
           this.broadcast({ type: 'history_update', data: newTrade });
           this.updateStats(marketContext);
         }
@@ -164,44 +196,6 @@ class ArbitrageBot {
       this.setStatus(false, "Error State");
     }
   }
-  
-  async runBacktest(startDate, endDate, config) {
-      this.addLog("Running backtest simulation...");
-      // In a real scenario, this would query a database of historical tick data.
-      // Here, we simulate it by running the main loop logic with generated data.
-      const simulatedTrades = [];
-      let currentSimDate = new Date(startDate);
-      const endSimDate = new Date(endDate);
-      
-      while(currentSimDate <= endSimDate) {
-          // Simulate market data for this interval
-          const fakePrice = 1 + (Math.random() - 0.5) * 0.1; // +/- 5% volatility
-          const spread = 0.005 + Math.random() * 0.01;
-          
-          if(Math.random() > 0.7) { // 30% chance of an opportunity
-               const trade = {
-                   id: `sim-${currentSimDate.getTime()}`,
-                   strategy: 'pairwise',
-                   status: Math.random() > 0.3 ? 'success' : 'failed', // 70% success rate
-                   profit: (Math.random() > 0.3 ? 1 : -1) * (0.01 + Math.random() * 0.05),
-                   timestamp: currentSimDate.getTime(),
-                   opportunity: { token: { symbol: 'SIM/ETH' }, spread }
-               };
-               simulatedTrades.push(trade);
-          }
-          currentSimDate.setHours(currentSimDate.getHours() + 4); // Advance time
-      }
-      
-      const summary = {
-          totalPnl: simulatedTrades.reduce((sum, t) => sum + (t.profit || 0), 0),
-          totalTrades: simulatedTrades.length,
-          successRate: (simulatedTrades.filter(t => t.status === 'success').length / simulatedTrades.length) * 100,
-          startDate,
-          endDate
-      };
-      
-      return { summary, trades: simulatedTrades };
-  }
 
   start() {
     if (this.interval) return;
@@ -210,11 +204,14 @@ class ArbitrageBot {
       this.addLog('Initializing Flashbots executor...');
       try {
         this.flashbotsExecutor = await FlashbotsExecutor.create(this.provider, this.wallet);
-        this.addLog('Flashbots executor initialized.');
+        this.addLog('Flashbots executor initialized. MEV protection is ACTIVE.');
       } catch (e) {
-        this.addLog(`Could not initialize Flashbots: ${e.message}. Using standard transactions.`);
+        this.addLog(`Could not initialize Flashbots: ${e.message}. Bot will use standard transactions.`);
         this.flashbotsExecutor = null;
       }
+      
+      await this.monitorRpcStatus();
+      this.addLog('Initial RPC health check complete.');
 
       this.addLog('Bot is now fully autonomous...');
       await this.updateMarketSentiment();
@@ -224,6 +221,7 @@ class ArbitrageBot {
       this.interval = setInterval(() => this.mainLoop(), 20000); // 20s interval
       this.adviceInterval = setInterval(() => this.getStrategicUpdate(), 1000 * 60 * 5); // 5 mins
       this.sentimentInterval = setInterval(() => this.updateMarketSentiment(), 1000 * 60 * 15); // 15 mins
+      this.rpcMonitorInterval = setInterval(() => this.monitorRpcStatus(), 1000 * 60); // 1 min
     })().catch(err => {
       console.error('Bot startup failed:', err);
       this.addLog(`FATAL: Bot failed to start: ${err.message}`);
@@ -237,15 +235,17 @@ class ArbitrageBot {
     clearInterval(this.interval);
     clearInterval(this.adviceInterval);
     clearInterval(this.sentimentInterval);
+    clearInterval(this.rpcMonitorInterval);
     this.interval = null;
     this.adviceInterval = null;
     this.sentimentInterval = null;
+    this.rpcMonitorInterval = null;
     this.setStatus(false, "Stopped (Manual)");
   }
   
   updateConfig(newConfig, isManual = false) {
     this.config = newConfig;
-    fs.writeFileSync('./src/config.json', JSON.stringify(newConfig, null, 2));
+    require('fs').writeFileSync('./src/config.json', JSON.stringify(newConfig, null, 2));
     if(isManual) this.addLog('Manual configuration override has been applied.');
     this.broadcast({type: 'config_update', data: newConfig});
   }
@@ -255,6 +255,7 @@ class ArbitrageBot {
   getConfig() { return this.config; }
   getTradeHistory() { return this.tradeHistory; }
   getMarketSentiment() { return this.marketSentiment; }
+  getRpcStatus() { return this.rpcStatus; }
 }
 
 module.exports = { ArbitrageBot };

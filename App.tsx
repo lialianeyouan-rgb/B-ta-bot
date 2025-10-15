@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { Configuration } from './components/Configuration';
 import { TradeHistory } from './components/TradeHistory';
-import { Backtesting } from './components/Backtesting';
+import { Logs } from './components/Logs';
 import { useArbitrageBot } from './hooks/useArbitrageBot';
 import type { View } from './types';
 
@@ -20,8 +20,8 @@ const App: React.FC = () => {
         return <Configuration bot={bot} />;
       case 'history':
         return <TradeHistory bot={bot} />;
-      case 'backtesting':
-        return <Backtesting bot={bot} />;
+      case 'logs':
+        return <Logs logs={bot.logs} />;
       default:
         return <Dashboard bot={bot} />;
     }
