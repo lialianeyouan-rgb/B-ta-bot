@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import type { UseArbitrageBot, Trade } from '../types';
 
-// Fix: Define an interface for the performance stats object to ensure type safety.
 interface StrategyStats {
   totalPnl: number;
   count: number;
@@ -93,7 +92,6 @@ export const Backtesting: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
         <h3 className="text-lg font-semibold mb-4 text-gray-300">Performance by Strategy</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {Object.entries(analysis.statsByStrategy).map(([strategy, stats]) => {
-                // Fix: Cast the `stats` object, which is inferred as `unknown` by Object.entries, to the correct type.
                 const typedStats = stats as StrategyStats;
                 return (
                 <div key={strategy} className="bg-gray-800 p-4 rounded-lg border border-gray-700 space-y-2 col-span-1 md:col-span-2">
@@ -121,7 +119,6 @@ export const Backtesting: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
         <h3 className="text-lg font-semibold mb-4 text-gray-300">Performance by DEX</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Object.entries(analysis.statsByDex).map(([dex, stats]) => {
-            // Fix: Cast the `stats` object to ensure type safety.
             const typedStats = stats as StrategyStats;
             return (
             <StatCard

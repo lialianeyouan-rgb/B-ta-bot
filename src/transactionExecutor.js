@@ -78,7 +78,7 @@ async function executeArbitrage(wallet, provider, trade, config, flashbotsExecut
             txHash = bundleResponse.txHash;
         } else {
             const signedTx = await wallet.signTransaction(tx);
-            txResponse = await provider.send(signedTx);
+            txResponse = await provider.broadcastTransaction(signedTx);
             txHash = txResponse.hash;
         }
 

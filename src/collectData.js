@@ -92,7 +92,7 @@ async function getTriangularOpportunities(token, provider) {
 
     const priceAB = pairAB_data.token0Address.toLowerCase() === tokenA.toLowerCase() ? Number(pairAB_data.reserve1) / Number(pairAB_data.reserve0) : Number(pairAB_data.reserve0) / Number(pairAB_data.reserve1);
     const priceBC = pairBC_data.token0Address.toLowerCase() === tokenB.toLowerCase() ? Number(pairBC_data.reserve1) / Number(pairBC_data.reserve0) : Number(pairBC_data.reserve0) / Number(pairBC_data.reserve1);
-    const priceCA = pairCA_data.token0Address.toLowerCase() === tokenC.toLowerCase() ? Number(CA_data.reserve1) / Number(pairCA_data.reserve0) : Number(pairCA_data.reserve0) / Number(pairCA_data.reserve1);
+    const priceCA = pairCA_data.token0Address.toLowerCase() === tokenC.toLowerCase() ? Number(pairCA_data.reserve1) / Number(pairCA_data.reserve0) : Number(pairCA_data.reserve0) / Number(pairCA_data.reserve1);
 
     // Formula: (1 / priceAB) * (1 / priceBC) * priceCA should be > 1 for profit
     const arbitrageRatio = (1 / priceAB) * (1 / priceBC) * priceCA;
