@@ -1,3 +1,4 @@
+
 const { ethers } = require('ethers');
 const { FlashbotsBundleProvider } = require("@flashbots/ethers-provider-bundle");
 
@@ -25,7 +26,7 @@ class FlashbotsExecutor {
     const flashbotsProvider = await FlashbotsBundleProvider.create(
       provider,
       authSigner,
-      "https://rpc.flashbots.net", // Correct relay for Polygon Mainnet
+      "https://relay.flashbots.net", // Correct relay for Polygon Mainnet
       "matic" // Correct network name for Polygon
     );
     

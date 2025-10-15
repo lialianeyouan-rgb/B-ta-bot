@@ -1,11 +1,12 @@
+
 const { ethers } = require('ethers');
+const fs = require('fs');
 const { getOpportunities, getMarketContext, getSentimentAnalysis } = require('./collectData');
 const { executeArbitrage } = require('./transactionExecutor');
 const { analyzeOpportunity, analyzeTradeResult, suggestConfigChanges } = require('./geminiAnalyzer');
 const { FlashbotsExecutor } = require('./flashbotsExecutor');
 const { VectorStore } = require('./memory/vectorStore');
 const appConfig = require('./config'); // Use the new config file
-const fs = 'fs';
 
 class ArbitrageBot {
   constructor(broadcast) {
@@ -15,7 +16,7 @@ class ArbitrageBot {
     this.opportunities = [];
     this.tradeHistory = [];
     this.logs = ['Bot initialized with Gemini AI Engine v2.1.'];
-    this.config = JSON.parse(require('fs').readFileSync('./src/config.json', 'utf-8'));
+    this.config = JSON.parse(fs.readFileSync('./src/config.json', 'utf-8'));
     this.stats = { totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low' };
     this.marketSentiment = { overall: 'neutral', tokens: {} };
     this.interval = null;
@@ -245,7 +246,7 @@ class ArbitrageBot {
   
   updateConfig(newConfig, isManual = false) {
     this.config = newConfig;
-    require('fs').writeFileSync('./src/config.json', JSON.stringify(newConfig, null, 2));
+    fs.writeFileSync('./src/config.json', JSON.stringify(newConfig, null, 2));
     if(isManual) this.addLog('Manual configuration override has been applied.');
     this.broadcast({type: 'config_update', data: newConfig});
   }
