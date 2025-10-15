@@ -10,7 +10,7 @@ export const useArbitrageBot = (): UseArbitrageBot => {
   const [tradeHistory, setTradeHistory] = useState<Trade[]>([]);
   const [logs, setLogs] = useState<string[]>(['Connecting to bot backend...']);
   const [config, setConfig] = useState<BotConfig>({ tokens: [], pSuccessThreshold: 0, flashLoan: { provider: '', fee: 0, contractAddress: '' }, riskManagement: { dailyLossThreshold: 0.02, cooldownMinutes: 60 } });
-  const [stats, setStats] = useState({ totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low' });
+  const [stats, setStats] = useState({ totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low', estimatedRpcRequestsPerDay: 0 });
   const [strategicAdvice, setStrategicAdvice] = useState<string | null>(null);
   const [marketSentiment, setMarketSentiment] = useState<MarketSentiment | null>(null);
   const [rpcStatus, setRpcStatus] = useState<RpcStatus[]>([]);

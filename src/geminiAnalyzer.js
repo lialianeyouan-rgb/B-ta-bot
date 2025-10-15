@@ -1,12 +1,13 @@
 
 const { GoogleGenAI, Type } = require('@google/genai');
 const { VectorStore } = require('./memory/vectorStore');
+const appConfig = require('./config');
 
-if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY for Gemini API is not defined in .env file");
+if (!appConfig.geminiApiKey || appConfig.geminiApiKey.includes('VOTRE_CLE_API_GEMINI')) {
+    throw new Error("GEMINI_API_KEY for Gemini API is not defined in src/config.js");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: appConfig.geminiApiKey });
 
 const flashLoanAnalysisSchema = {
     type: Type.OBJECT,

@@ -8,6 +8,7 @@ interface HeaderProps {
         gasPriceGwei: string; 
         volatility: string;
         sentiment: Sentiment;
+        estimatedRpcRequestsPerDay: number;
     };
 }
 
@@ -20,6 +21,13 @@ const SentimentIndicator: React.FC<{ sentiment: Sentiment }> = ({ sentiment }) =
     const style = sentimentStyles[sentiment] || sentimentStyles.neutral;
     return <span className={`font-semibold capitalize ${style.color}`}>{style.text}</span>;
 }
+
+const RpcIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10m16-10v10M4 13h16m-16-6h16M4 7a2 2 0 012-2h12a2 2 0 012 2m-2 10a2 2 0 01-2 2H6a2 2 0 01-2-2" />
+    </svg>
+);
+
 
 export const Header: React.FC<HeaderProps> = ({ botStatus, statusMessage, marketStats }) => {
     const statusColor = botStatus === 'running' ? 'bg-green-500' : 'bg-yellow-500';
@@ -35,6 +43,11 @@ export const Header: React.FC<HeaderProps> = ({ botStatus, statusMessage, market
                  <div className="flex items-center space-x-2 text-sm">
                     <span className="text-gray-400">Volatility:</span>
                     <span className="font-semibold text-white capitalize">{marketStats.volatility}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm" title="Estimated daily RPC requests. High usage may incur costs.">
+                    <RpcIcon />
+                    <span className="text-gray-400">RPC/day:</span>
+                    <span className="font-semibold text-white">~{(marketStats.estimatedRpcRequestsPerDay / 1000).toFixed(0)}k</span>
                 </div>
                  <div className="flex items-center space-x-2 text-sm">
                     <span className="text-gray-400">Sentiment:</span>

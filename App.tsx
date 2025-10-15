@@ -40,7 +40,8 @@ const App: React.FC = () => {
           marketStats={{ 
             gasPriceGwei: bot.stats.gasPriceGwei, 
             volatility: bot.stats.volatility,
-            sentiment: bot.marketSentiment?.overall || 'neutral'
+            sentiment: bot.marketSentiment?.overall || 'neutral',
+            estimatedRpcRequestsPerDay: bot.stats.estimatedRpcRequestsPerDay,
           }} 
         />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-4 md:p-8">

@@ -82,6 +82,7 @@ export interface UseArbitrageBot {
         successRate: number;
         gasPriceGwei: string;
         volatility: string;
+        estimatedRpcRequestsPerDay: number;
     };
     updateConfig: (newConfig: BotConfig) => void;
 }

@@ -9,6 +9,7 @@ const { VectorStore } = require('./memory/vectorStore');
 const appConfig = require('./config'); // Use the new config file
 
 const HISTORY_FILE = './tradeHistory.json';
+const MAIN_LOOP_INTERVAL_MS = 20000;
 
 class ArbitrageBot {
   constructor(broadcast) {
@@ -19,7 +20,7 @@ class ArbitrageBot {
     this.tradeHistory = [];
     this.logs = ['Bot initialized with Gemini AI Engine v2.1.'];
     this.config = JSON.parse(fs.readFileSync('./src/config.json', 'utf-8'));
-    this.stats = { totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low' };
+    this.stats = { totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low', estimatedRpcRequestsPerDay: 0 };
     this.marketSentiment = { overall: 'neutral', tokens: {} };
     this.interval = null;
     this.adviceInterval = null;
@@ -32,14 +33,10 @@ class ArbitrageBot {
     this.loadHistory(); // Load persistent history on startup
 
     // --- RPC Redundancy & Failover ---
-    const rpcUrls = [
-        process.env.RPC_URL_1,
-        process.env.RPC_URL_2,
-        process.env.RPC_URL_3,
-    ].filter(Boolean); // Filter out any undefined URLs
+    const rpcUrls = appConfig.rpcUrls.filter(Boolean); // Filter out any undefined URLs
 
-    if (rpcUrls.length === 0) {
-        throw new Error("No RPC URLs configured in .env file. Please provide at least one (e.g., RPC_URL_1).");
+    if (rpcUrls.length === 0 || rpcUrls.some(url => url.includes('VOTRE_URL'))) {
+        throw new Error("RPC URLs are not configured correctly in src/config.js. Please provide at least one valid URL.");
     }
     this.addLog(`Initializing with ${rpcUrls.length} RPC endpoints for performance and redundancy.`);
     const providers = rpcUrls.map(url => new ethers.JsonRpcProvider(url));
@@ -47,10 +44,10 @@ class ArbitrageBot {
     this.rpcStatus = rpcUrls.map(url => ({ url, latency: null, status: 'pending', isActive: false }));
     // --- End RPC Upgrade ---
     
-    if (!process.env.PRIVATE_KEY) {
-        throw new Error("PRIVATE_KEY is not defined in .env file.");
+    if (!appConfig.privateKey || appConfig.privateKey.includes('VOTRE_CLE_PRIVEE')) {
+        throw new Error("PRIVATE_KEY is not defined in src/config.js.");
     }
-    this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY, this.provider);
+    this.wallet = new ethers.Wallet(appConfig.privateKey, this.provider);
     this.flashbotsExecutor = null;
   }
 
@@ -98,6 +95,15 @@ class ArbitrageBot {
 
     const totalPnl = this.tradeHistory.reduce((acc, trade) => acc + (trade.profit || 0), 0);
     const successRate = completedTrades.length > 0 ? (successfulTrades.length / completedTrades.length) * 100 : 0;
+
+    // --- Calculate estimated daily RPC requests ---
+    const loopsPerDay = (24 * 60 * 60 * 1000) / MAIN_LOOP_INTERVAL_MS;
+    // Estimate ~5 RPC calls per strategy on average (getPair, getReserves, etc.)
+    const estimatedRpcForOpportunities = loopsPerDay * this.config.tokens.length * 5;
+    const estimatedRpcForContext = loopsPerDay * 2; // getMarketContext
+    const estimatedRpcForMonitor = (24 * 60) * this.rpcStatus.length; // monitorRpcStatus
+    const totalEstimatedRpc = estimatedRpcForOpportunities + estimatedRpcForContext + estimatedRpcForMonitor;
+    // --- End calculation ---
     
     this.stats = {
       totalPnl: totalPnl,
@@ -105,6 +111,7 @@ class ArbitrageBot {
       successRate: parseFloat(successRate.toFixed(2)),
       gasPriceGwei: marketContext.gasPriceGwei || this.stats.gasPriceGwei,
       volatility: marketContext.volatility || this.stats.volatility,
+      estimatedRpcRequestsPerDay: totalEstimatedRpc,
     };
     this.broadcast({ type: 'stats_update', data: this.stats });
   }
@@ -255,7 +262,7 @@ class ArbitrageBot {
       await this.mainLoop();
       await this.getStrategicUpdate();
       
-      this.interval = setInterval(() => this.mainLoop(), 20000); // 20s interval
+      this.interval = setInterval(() => this.mainLoop(), MAIN_LOOP_INTERVAL_MS);
       this.adviceInterval = setInterval(() => this.getStrategicUpdate(), 1000 * 60 * 5); // 5 mins
       this.sentimentInterval = setInterval(() => this.updateMarketSentiment(), 1000 * 60 * 15); // 15 mins
       this.rpcMonitorInterval = setInterval(() => this.monitorRpcStatus(), 1000 * 60); // 1 min
@@ -285,6 +292,7 @@ class ArbitrageBot {
     fs.writeFileSync('./src/config.json', JSON.stringify(newConfig, null, 2));
     if(isManual) this.addLog('Manual configuration override has been applied.');
     this.broadcast({type: 'config_update', data: newConfig});
+    this.updateStats(); // Recalculate stats immediately after config change
   }
   
   getStats() { return this.stats; }

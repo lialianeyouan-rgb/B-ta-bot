@@ -1,38 +1,37 @@
 // ###################################################################################
 // #                                                                                 #
-// #    !!!   DANGER : CONFIGURATION MAINNET   !!!                                   #
+// #    !!!   DANGER : CONFIGURATION MAINNET AVEC CLÉS INTÉGRÉES   !!!               #
 // #                                                                                 #
-// #    Ce bot est maintenant configuré pour opérer sur le réseau principal         #
-// #    (MAINNET) de Polygon. Toutes les transactions utiliseront des                #
-// #    FONDS RÉELS. Une erreur peut entraîner une perte IRRÉVERSIBLE de capital.    #
+// #    ATTENTION : Ce fichier contient des clés secrètes (API, Clé Privée, RPCs)    #
+// #    directement dans le code. C'est une pratique de sécurité EXTRÊMEMENT         #
+// #    DANGEREUSE.                                                                  #
 // #                                                                                 #
-// #    VÉRIFIEZ TOUT DEUX FOIS.                                                     #
+// #    NE PARTAGEZ JAMAIS CE FICHIER. NE LE METTEZ JAMAIS SUR UN DÉPÔT GIT PUBLIC.   #
 // #                                                                                 #
-// ###################################################################################
-
-// ###################################################################################
+// #    Toute personne ayant accès à ce fichier peut voler tous les fonds de votre   #
+// #    portefeuille.                                                                #
 // #                                                                                 #
-// #    !!!   MISE À JOUR DE SÉCURITÉ IMPORTANTE   !!!                               #
-// #                                                                                 #
-// #    Les clés sensibles (Clé API Gemini, Clé Privée, URLs RPC) ont été            #
-// #    retirées de ce fichier. Elles doivent maintenant être placées dans un        #
-// #    fichier nommé `.env` à la racine de votre projet. C'est une pratique         #
-// #    essentielle pour la sécurité.                                                #
-// #                                                                                 #
-// #    Créez un fichier `.env` et ajoutez les lignes suivantes :                    #
-// #                                                                                 #
-// #    GEMINI_API_KEY="AIzaSy...VotreClé...QiA"                                     #
-// #    PRIVATE_KEY="0x5492...VotreClé...c7"                                         #
-// #    RPC_URL_1="https://polygon-mainnet.infura.io/v3/VOTRE_ID_INFURA"             #
-// #    RPC_URL_2="https://polygon-mainnet.g.alchemy.com/v2/VOTRE_CLE_ALCHEMY"       #
-// #    RPC_URL_3="https://...votre-noeud-prive.../"                                 #
-// #                                                                                 #
-// #    NE PARTAGEZ JAMAIS VOTRE FICHIER `.env`.                                     #
+// #    Pour une utilisation réelle, utilisez TOUJOURS un fichier `.env` ou un      #
+// #    gestionnaire de secrets (comme AWS KMS, Azure Key Vault).                    #
 // #                                                                                 #
 // ###################################################################################
 
 module.exports = {
-    // Ce fichier est intentionnellement laissé presque vide.
-    // La configuration de la stratégie de trading se trouve dans `src/config.json`.
-    // Les clés et les points de terminaison sont dans `.env`.
+    // --- Clés Secrètes ---
+    // REMPLACEZ PAR VOTRE VÉRITABLE CLÉ API GEMINI
+    geminiApiKey: "VOTRE_CLE_API_GEMINI_ICI",
+
+    // Clé privée de portefeuille. PRUDENCE EXTRÊME.
+    privateKey: "0x54923eccb60f4baa86a6e004a280b14b3b1de39b3ca18538f85d8f90c78b52c7",
+
+    // --- Configuration RPC pour Polygon MAINNET (FONDS RÉELS) ---
+    // Le bot utilisera ces URLs pour la redondance et la performance.
+    rpcUrls: [
+        "https://polygon-mainnet.infura.io/v3/6f76f3970b6d4ea08d24d825e3c7f86b",
+        "https://polygon-mainnet.g.alchemy.com/v2/0QT7wJ8mXN6ImihIV7O20",
+        // ACTION REQUISE : REMPLACEZ CECI par votre URL QuickNode COMPLÈTE.
+        // Votre clé est QN_c3adb60721754445bfaa103c8aea986f.
+        // Exemple : "https://nom-aleatoire.polygon-mainnet.discover.quiknode.pro/QN_c3adb.../"
+        "VOTRE_URL_QUICKNODE_COMPLETE_ICI"
+    ]
 };
