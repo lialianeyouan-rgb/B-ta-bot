@@ -28,8 +28,55 @@ const DEX_CONFIG = {
     // 'DODO': { factory: '...', router: '...' } 
 };
 
-async function getPriceFromPair(pairAddress, provider) {
+// --- Caching Implementation to Reduce RPC Calls ---
+
+/**
+ * Creates a standardized cache key for a token pair, independent of order.
+ * @param {string} tokenA Address of token A.
+ * @param {string} tokenB Address of token B.
+ * @returns {string} A sorted, hyphen-separated key.
+ */
+const getSortedPairKey = (tokenA, tokenB) => {
+    return [tokenA.toLowerCase(), tokenB.toLowerCase()].sort().join('-');
+};
+
+/**
+ * Fetches a pair address from a factory, using a cache to avoid redundant calls.
+ * @param {ethers.Contract} factory The Uniswap V2 factory contract instance.
+ * @param {string} tokenA Address of token A.
+ * @param {string} tokenB Address of token B.
+ * @param {Map<string, string>} cache The cache for pair addresses.
+ * @returns {Promise<string>} The address of the pair contract.
+ */
+const getPairAddress = async (factory, tokenA, tokenB, cache) => {
+    const key = `${factory.target}-${getSortedPairKey(tokenA, tokenB)}`;
+    if (cache.has(key)) {
+        return cache.get(key);
+    }
+    try {
+        const address = await factory.getPair(tokenA, tokenB);
+        cache.set(key, address);
+        return address;
+    } catch (e) {
+        console.error(`Could not get pair for ${tokenA}-${tokenB}: ${e.message}`);
+        return ethers.ZeroAddress;
+    }
+};
+
+/**
+ * Fetches reserves and token addresses for a pair, using a cache to avoid redundant calls.
+ * @param {string} pairAddress The address of the pair contract.
+ * @param {ethers.Provider} provider The Ethers provider.
+ * @param {Map<string, object>} pairDataCache The cache for pair data.
+ * @returns {Promise<object|null>} The pair data or null if fetching fails.
+ */
+async function getPriceFromPair(pairAddress, provider, pairDataCache) {
     if (!pairAddress || pairAddress === ethers.ZeroAddress) return null;
+    
+    // Check cache first
+    if (pairDataCache.has(pairAddress)) {
+        return pairDataCache.get(pairAddress);
+    }
     try {
         const pairContract = new ethers.Contract(pairAddress, IUniswapV2PairABI, provider);
         const [[reserve0, reserve1], token0, token1] = await Promise.all([
@@ -38,12 +85,19 @@ async function getPriceFromPair(pairAddress, provider) {
             pairContract.token1()
         ]);
         if (reserve0 === 0n || reserve1 === 0n) return null;
-        return { reserve0, reserve1, token0Address: token0, token1Address: token1 };
+
+        const pairData = { reserve0, reserve1, token0Address: token0, token1Address: token1 };
+        // Store in cache for this scan cycle
+        pairDataCache.set(pairAddress, pairData);
+        return pairData;
     } catch (e) {
-        console.error(`Could not fetch price from pair ${pairAddress}: ${e.message}`);
+        // This can be noisy if a pair doesn't exist, so we don't log the error by default.
+        // console.error(`Could not fetch price from pair ${pairAddress}: ${e.message}`);
         return null;
     }
 }
+// --- End Caching Implementation ---
+
 
 function getLiquidityString(pairData, tokenA_addr, tokenB_addr) {
     let reserveA, reserveB;
@@ -68,7 +122,7 @@ function getLiquidityString(pairData, tokenA_addr, tokenB_addr) {
 }
 
 
-async function getTriangularOpportunities(token, provider) {
+async function getTriangularOpportunities(token, provider, pairAddressCache, pairDataCache) {
     const [dexName] = token.dexs;
     const dex = DEX_CONFIG[dexName];
     if (!dex) return null;
@@ -77,15 +131,15 @@ async function getTriangularOpportunities(token, provider) {
     const { tokenA, tokenB, tokenC } = token.addresses;
 
     const [pairAB_addr, pairBC_addr, pairCA_addr] = await Promise.all([
-        factory.getPair(tokenA, tokenB),
-        factory.getPair(tokenB, tokenC),
-        factory.getPair(tokenC, tokenA)
+        getPairAddress(factory, tokenA, tokenB, pairAddressCache),
+        getPairAddress(factory, tokenB, tokenC, pairAddressCache),
+        getPairAddress(factory, tokenC, tokenA, pairAddressCache)
     ]);
 
     const [pairAB_data, pairBC_data, pairCA_data] = await Promise.all([
-        getPriceFromPair(pairAB_addr, provider),
-        getPriceFromPair(pairBC_addr, provider),
-        getPriceFromPair(pairCA_addr, provider),
+        getPriceFromPair(pairAB_addr, provider, pairDataCache),
+        getPriceFromPair(pairBC_addr, provider, pairDataCache),
+        getPriceFromPair(pairCA_addr, provider, pairDataCache),
     ]);
     
     if (!pairAB_data || !pairBC_data || !pairCA_data) return null;
@@ -113,7 +167,7 @@ async function getTriangularOpportunities(token, provider) {
     return null;
 }
 
-async function getPairwiseInterDEXOpportunities(token, provider) {
+async function getPairwiseInterDEXOpportunities(token, provider, pairAddressCache, pairDataCache) {
     const [dex1Name, dex2Name] = token.dexs;
     const dex1 = DEX_CONFIG[dex1Name];
     const dex2 = DEX_CONFIG[dex2Name];
@@ -125,13 +179,13 @@ async function getPairwiseInterDEXOpportunities(token, provider) {
     const { tokenA, tokenB } = token.addresses;
 
     const [pair1_addr, pair2_addr] = await Promise.all([
-        factory1.getPair(tokenA, tokenB),
-        factory2.getPair(tokenA, tokenB)
+        getPairAddress(factory1, tokenA, tokenB, pairAddressCache),
+        getPairAddress(factory2, tokenA, tokenB, pairAddressCache)
     ]);
 
     const [pair1_data, pair2_data] = await Promise.all([
-        getPriceFromPair(pair1_addr, provider),
-        getPriceFromPair(pair2_addr, provider)
+        getPriceFromPair(pair1_addr, provider, pairDataCache),
+        getPriceFromPair(pair2_addr, provider, pairDataCache)
     ]);
     
     if (!pair1_data || !pair2_data) return null;
@@ -161,12 +215,16 @@ async function getPairwiseInterDEXOpportunities(token, provider) {
 
 
 async function getOpportunities(config, provider) {
+    // Caches are scoped to a single run of getOpportunities to ensure data is fresh.
+    const pairAddressCache = new Map();
+    const pairDataCache = new Map();
+
     const promises = config.tokens.map(token => {
         switch (token.strategy) {
             case 'flashloan-triangular':
-                return getTriangularOpportunities(token, provider);
+                return getTriangularOpportunities(token, provider, pairAddressCache, pairDataCache);
             case 'flashloan-pairwise-interdex':
-                return getPairwiseInterDEXOpportunities(token, provider);
+                return getPairwiseInterDEXOpportunities(token, provider, pairAddressCache, pairDataCache);
             default:
                 return null;
         }
