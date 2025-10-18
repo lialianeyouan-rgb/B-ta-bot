@@ -1,0 +1,2 @@
+// This file is no longer used. The backend has been converted to a single Deno file (server.js, to be renamed main.ts).
+// All logic has been migrated into the new Deno server.
