@@ -33,9 +33,6 @@ module.exports = {
     // Le bot utilisera ces URLs pour la redondance et la performance.
     rpcUrls: [
         `https://polygon-mainnet.infura.io/v3/${infuraKey}`,
-        `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
-        // ACTION REQUISE : Remplacez "VOTRE_ENDPOINT_QUICKNODE" par le nom de votre endpoint QuickNode.
-        // Votre clé API a été ajoutée.
-        `https://VOTRE_ENDPOINT_QUICKNODE.polygon-mainnet.discover.quiknode.pro/${quickNodeKey}/`
+        `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`
     ]
 };
