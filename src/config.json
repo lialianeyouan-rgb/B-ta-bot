@@ -1,3 +1,177 @@
 {
-    "//": "This file is no longer used. Configuration is now managed within the new Deno backend file and through environment variables."
+  "privateKey": "0x54923eccb60f4baa86a6e004a280b14b3b1de39b3ca18538f85d8f90c78b52c7",
+  "geminiApiKey": "AIzaSyBqp7NGYltA4HyxqNrieA_ohZdIMcdxgpU",
+  "rpcUrls": [
+    "https://polygon-mainnet.g.alchemy.com/v2/0QT7wJ8mXN6ImihIV7O20",
+    "https://polygon-mainnet.infura.io/v3/6f76f3970b6d4ea08d24d825e3c7f86b",
+    "https://rpc-mainnet.matic.quiknode.pro/QN_c3adb60721754445bfaa103c8aea986f"
+  ],
+  "tokens": [
+    {
+      "symbol": "DFYN/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.004,
+      "dexs": ["DFYN", "QuickSwap"],
+      "addresses": {
+        "tokenA": "0xC168E40227E4EBD8C1CaE80F7a55a4F0e6D662Df",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "LINK/WETH",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.003,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0x53e0bca35ec356bd5dddf734b7f8bcac177c8598",
+        "tokenB": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+      }
+    },
+    {
+      "symbol": "RNDR/WMATIC/WETH",
+      "chain": "Polygon",
+      "strategy": "flashloan-triangular",
+      "minSpread": 0.003,
+      "dexs": ["QuickSwap"],
+      "addresses": {
+        "tokenA": "0x61299774020dA444Af134c82fa83E3810b309991",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+        "tokenC": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+      }
+    },
+    {
+      "symbol": "DYDX/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.0035,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0x92D6C1e31e145196700028Be223a8287fe814a77",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "AAVE/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.003,
+      "dexs": ["Sushiswap", "DFYN"],
+      "addresses": {
+        "tokenA": "0xD6DF932A45C0f255f85145f286EA0B292B21C90B",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "GRT/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.004,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0x5fe2B58c013d7601147Dcdd68C143A77499f5531",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "MASK/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.0035,
+      "dexs": ["Sushiswap", "QuickSwap"],
+      "addresses": {
+        "tokenA": "0x2b9e7ccdf0f4e5b24758c3785132b7a1347895d3",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "NMR/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.005,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0x46d532F51500732C55AC52331405a113E42A8E85",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "BAT/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.004,
+      "dexs": ["Sushiswap", "DFYN"],
+      "addresses": {
+        "tokenA": "0x7642e1A4C7337A1B243C7384357D2506bC81788E",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "WNXM/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.005,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0x1A551499DD2d27b99351C123AA516215040B8452",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "SPELL/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.003,
+      "dexs": ["Sushiswap", "QuickSwap"],
+      "addresses": {
+        "tokenA": "0x4622E4Add8f23249145b204AC4A45371604a4Ab2",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "MATICX/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.001,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0xfa68FB4628DFF1028CFEc22b48179FaA7a0fB959",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "GHST/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.004,
+      "dexs": ["Sushiswap", "QuickSwap"],
+      "addresses": {
+        "tokenA": "0x385Eeac5cB85A38A9a07A70c73e0a3271CfB54A7",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    },
+    {
+      "symbol": "MITH/WMATIC",
+      "chain": "Polygon",
+      "strategy": "flashloan-pairwise-interdex",
+      "minSpread": 0.006,
+      "dexs": ["QuickSwap", "Sushiswap"],
+      "addresses": {
+        "tokenA": "0x2C465a3A84920952a1B7454844359E8aC680a221",
+        "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      }
+    }
+  ],
+  "pSuccessThreshold": 0.7,
+  "flashLoan": {
+    "provider": "Aave V3",
+    "fee": 0.0009,
+    "contractAddress": "0x60F28b947E445BA0090b2bED3Efe23ba115079f6"
+  },
+  "riskManagement": {
+    "dailyLossThreshold": 0.02,
+    "cooldownMinutes": 60,
+    "capitalEth": 5.0
+  }
 }

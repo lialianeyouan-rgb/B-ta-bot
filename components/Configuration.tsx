@@ -15,8 +15,9 @@ const SecurityWarning = () => (
     <div className="p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-300">
         <h4 className="font-bold">Security Warning</h4>
         <p className="text-sm mt-2">
-            This bot operates using a private key stored in an environment variable (`.env` file). 
-            This is a significant security risk for production environments. For real funds, always use a secure key management solution like AWS KMS, Azure Key Vault, or a hardware wallet. Never expose this key publicly.
+            This bot operates using a private key stored directly in the <strong>src/config.json</strong> file.
+            Exposing this file publicly (e.g., in a public GitHub repository) will result in the <strong>theft of all funds</strong> from that wallet.
+            For real funds, always use a secure key management solution and never commit secrets to version control.
         </p>
     </div>
 );

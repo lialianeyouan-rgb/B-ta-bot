@@ -1,2 +1,11 @@
-// This file is no longer used. The backend has been converted to a single Deno file (server.js, to be renamed main.ts).
-// All logic has been migrated into the new Deno server.
+// This file handles programmatic and environment-based configuration.
+// It complements the static configuration from config.json.
+import 'dotenv/config';
+
+/**
+ * Retrieves the Gemini API key from environment variables.
+ * @returns {string | undefined} The Gemini API key.
+ */
+export const getGeminiApiKey = () => {
+    return process.env.GEMINI_API_KEY;
+};
