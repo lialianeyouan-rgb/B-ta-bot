@@ -25,7 +25,7 @@ export class FlashbotsExecutor {
             provider,
             authSigner,
             "https://relay-polygon.flashbots.net",
-            "matic"
+            137 // Polygon Mainnet Chain ID
         );
         return new FlashbotsExecutor(flashbotsProvider, wallet, provider);
     } catch (e) {

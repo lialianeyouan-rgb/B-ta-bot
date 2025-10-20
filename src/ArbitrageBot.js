@@ -38,8 +38,8 @@ export class ArbitrageBot {
         
         this.rpcStatus = rpcUrls.map(url => ({ url, latency: null, status: 'pending', isActive: false }));
         
-        const providers = rpcUrls.map(url => new ethers.JsonRpcProvider(url));
-        this.provider = new ethers.FallbackProvider(providers, 1);
+        const providers = rpcUrls.map(url => new ethers.providers.JsonRpcProvider(url));
+        this.provider = new ethers.providers.FallbackProvider(providers, 1);
         this.wallet = new ethers.Wallet(privateKey, this.provider);
         this.flashbotsExecutor = null;
         
