@@ -1,30 +1,23 @@
 // VectorStore provides a simplified long-term memory for the bot,
 // allowing it to recall past trades to provide context for new opportunities.
-// A real implementation would use a proper vector database and embeddings.
+// It now queries the database directly, making it a stateless service.
 
 export class VectorStore {
-    constructor(initialTrades = []) {
-        this.trades = initialTrades;
-    }
-
     /**
-     * Adds a completed trade to the store.
-     * @param {Trade} trade - The trade to add.
-     */
-    addTrade(trade) {
-        this.trades.push(trade);
-    }
-
-    /**
-     * Finds the most similar past trades to a new opportunity.
+     * Finds the most similar past trades to a new opportunity by querying the database.
      * This uses a simple heuristic scoring model, not actual vectors.
      * @param {Opportunity} opportunity - The new opportunity.
-     * @returns {Trade[]} An array of up to 3 similar trades.
+     * @param {Database} db - The database instance.
+     * @returns {Promise<Trade[]>} An array of up to 3 similar trades.
      */
-    findSimilar(opportunity) {
-        if (this.trades.length === 0) return [];
+    async findSimilar(opportunity, db) {
+        // NOTE: In a production system with millions of trades, this would be a targeted SQL query
+        // or a call to a dedicated vector database. For this project's scale, fetching and processing
+        // in memory is acceptable and avoids complex SQL with JSON parsing.
+        const allTrades = await db.getTrades();
+        if (allTrades.length === 0) return [];
         
-        return this.trades
+        return allTrades
             .map(trade => {
                 let score = 0;
                 if (trade.opportunity.token.symbol === opportunity.token.symbol) score += 5;
@@ -44,10 +37,11 @@ export class VectorStore {
     /**
      * Generates a concise text summary of similar past trades for the AI prompt.
      * @param {Opportunity} opportunity - The current opportunity to find context for.
-     * @returns {string} A string summary.
+     * @param {Database} db - The database instance.
+     * @returns {Promise<string>} A string summary.
      */
-    getSimilarTradesContext(opportunity) {
-        const similarTrades = this.findSimilar(opportunity);
+    async getSimilarTradesContext(opportunity, db) {
+        const similarTrades = await this.findSimilar(opportunity, db);
         if (similarTrades.length === 0) {
             return "No similar trades found in history.";
         }

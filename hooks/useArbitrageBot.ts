@@ -81,7 +81,7 @@ export const useArbitrageBot = (): UseArbitrageBot => {
           setOpportunities(message.data);
           break;
         case 'history_update':
-          setTradeHistory(prev => [message.data, ...prev]);
+          setTradeHistory(prev => [message.data, ...prev].slice(0, 200)); // Cap history size
           break;
         case 'config_update':
           setConfig(message.data);

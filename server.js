@@ -38,53 +38,63 @@ wss.on('connection', (ws) => {
     ws.onerror = (err) => console.error("Erreur WebSocket:", err);
 });
 
-try {
-    // Créer et initialiser le bot
-    const bot = new ArbitrageBot(broadcast);
+const main = async () => {
+    try {
+        // Créer et initialiser le bot
+        const bot = new ArbitrageBot(broadcast);
+        await bot.initialize(); // Attendre l'initialisation asynchrone
 
-    // Endpoints de l'API
-    app.get('/api/status', (req, res) => {
-        res.json({
-            isRunning: bot.isRunning,
-            statusMessage: bot.statusMessage,
-            stats: bot.stats,
-            logs: bot.logs,
-            strategicAdvice: bot.strategicAdvice,
+        // Endpoints de l'API
+        app.get('/api/status', (req, res) => {
+            res.json({
+                isRunning: bot.isRunning,
+                statusMessage: bot.statusMessage,
+                stats: bot.stats,
+                logs: bot.logs,
+                strategicAdvice: bot.strategicAdvice,
+            });
         });
-    });
 
-    app.get('/api/config', (req, res) => {
-        res.json(bot.config);
-    });
+        app.get('/api/config', (req, res) => {
+            res.json(bot.config);
+        });
 
-    app.post('/api/config', (req, res) => {
-        try {
-            bot.updateConfig(req.body);
-            res.json({ message: "Configuration mise à jour." });
-        } catch (error) {
-            res.status(500).json({ error: 'Failed to update configuration.' });
-        }
-    });
+        app.post('/api/config', (req, res) => {
+            try {
+                bot.updateConfig(req.body);
+                res.json({ message: "Configuration mise à jour." });
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to update configuration.' });
+            }
+        });
 
-    app.get('/api/history', (req, res) => {
-        res.json(bot.tradeHistory);
-    });
+        app.get('/api/history', async (req, res) => {
+            try {
+                const trades = await bot.db.getTrades();
+                res.json(trades);
+            } catch (error) {
+                res.status(500).json({ error: 'Failed to fetch trade history.' });
+            }
+        });
 
-    app.get('/api/sentiment', (req, res) => {
-        res.json(bot.marketSentiment);
-    });
+        app.get('/api/sentiment', (req, res) => {
+            res.json(bot.marketSentiment);
+        });
 
-    app.get('/api/rpc-status', (req, res) => {
-        res.json(bot.rpcStatus);
-    });
+        app.get('/api/rpc-status', (req, res) => {
+            res.json(bot.rpcStatus);
+        });
 
-    server.listen(PORT, () => {
-        console.log(`Serveur Node.js démarré sur http://localhost:${PORT}`);
-        // Démarrer le bot automatiquement au lancement du serveur
-        bot.start();
-    });
+        server.listen(PORT, () => {
+            console.log(`Serveur Node.js démarré sur http://localhost:${PORT}`);
+            // Démarrer le bot automatiquement au lancement du serveur
+            bot.start();
+        });
 
-} catch (error) {
-    console.error("ERREUR FATALE AU DÉMARRAGE :", error.message);
-    process.exit(1);
-}
+    } catch (error) {
+        console.error("ERREUR FATALE AU DÉMARRAGE :", error.message);
+        process.exit(1);
+    }
+};
+
+main();

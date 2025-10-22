@@ -5,6 +5,8 @@ import { VectorStore } from '../memory/vectorStore.js';
 import { FlashbotsExecutor } from './flashbotsExecutor.js';
 import { geminiAnalyze, getStrategicAdvice } from './geminiAnalyzer.js';
 import { GoogleGenAI } from "@google/genai";
+import { Database } from './database.js';
+import { Logger } from './logger.js';
 
 // Fonctions simulées pour la démonstration
 import { collectData } from './collectData.js';
@@ -14,11 +16,15 @@ export class ArbitrageBot {
     constructor(broadcastCallback) {
         this.broadcast = broadcastCallback;
         
+        // Database & Logger
+        this.db = new Database('./arbitrage.db');
+        this.vectorStore = new VectorStore();
+        
         // State
         this.isRunning = false;
         this.statusMessage = "Initializing...";
         this.opportunities = [];
-        this.tradeHistory = [];
+        this.tradeHistory = []; // Maintenu en mémoire pour l'UI, mais avec une taille limitée.
         this.logs = ['Bot initializing...'];
         this.config = configData;
         this.strategicAdvice = "Strategic analysis will be available after a few trades.";
@@ -27,9 +33,6 @@ export class ArbitrageBot {
         this.cooldownUntil = 0;
         this.mainLoopInterval = null;
         this.geminiAi = null;
-
-        // Memory
-        this.vectorStore = new VectorStore([]);
 
         // Ethers & Wallet Setup
         const { rpcUrls, privateKey } = this.config;
@@ -42,10 +45,22 @@ export class ArbitrageBot {
         this.provider = new ethers.providers.FallbackProvider(providers, 1);
         this.wallet = new ethers.Wallet(privateKey, this.provider);
         this.flashbotsExecutor = null;
-        
+    }
+
+    async initialize() {
+        // Initialiser la base de données et le logger en premier
+        await this.db.connect();
+        this.logs = Logger.getRecentLogs();
+        this.addLog("Logger and Database initialized.");
+
+        // Charger l'historique récent pour l'affichage initial
+        this.tradeHistory = await this.db.getTrades({ limit: 100 });
+        this.addLog(`Loaded ${this.tradeHistory.length} recent trades from database for UI.`);
+        await this.updateStats();
+
         this.initGemini();
         this.addLog(`Bot initialized. Wallet Address: ${this.wallet.address}`);
-        this.initFlashbots();
+        await this.initFlashbots();
     }
 
     initGemini() {
@@ -65,10 +80,10 @@ export class ArbitrageBot {
     }
 
     addLog(message) {
+        Logger.log(message);
         const logMessage = `[${new Date().toLocaleTimeString()}] ${message}`;
         this.logs = [logMessage, ...this.logs.slice(0, 99)];
         this.broadcast({ type: 'log', data: logMessage });
-        console.log(message);
     }
 
     updateConfig(newConfig) {
@@ -122,7 +137,7 @@ export class ArbitrageBot {
             for (const opp of potentialOpportunities) {
                 this.addLog(`Potential opportunity for ${opp.token.symbol}. Analyzing...`);
                 
-                const context = this.vectorStore.getSimilarTradesContext(opp);
+                const context = await this.vectorStore.getSimilarTradesContext(opp, this.db);
                 const analyzedOpp = await geminiAnalyze(opp, context, this.geminiAi);
 
                 this.opportunities = [analyzedOpp, ...this.opportunities.slice(0, 19)];
@@ -143,12 +158,16 @@ export class ArbitrageBot {
                         txHash: result.txHash,
                         postMortem: result.postMortem || (result.success ? "Execution successful." : "Execution failed.")
                     };
-
+                    
                     this.addLog(`Trade Result: ${newTrade.status.toUpperCase()}, PnL: ${newTrade.profit.toFixed(5)} ETH`);
+
+                    // Persist trade and update UI
+                    await this.db.addTrade(newTrade);
                     this.tradeHistory.unshift(newTrade);
-                    this.vectorStore.addTrade(newTrade);
+                    if (this.tradeHistory.length > 100) this.tradeHistory.pop(); // Cap in-memory history
+                    
                     this.broadcast({ type: 'history_update', data: newTrade });
-                    this.updateStats();
+                    await this.updateStats();
                 }
             }
         } catch (error) {
@@ -162,22 +181,18 @@ export class ArbitrageBot {
     
     async updateStrategicAdvice() {
         this.addLog("Fetching new strategic advice from Gemini...");
-        this.strategicAdvice = await getStrategicAdvice(this.stats, this.tradeHistory.slice(0, 10), this.geminiAi);
+        // Use in-memory recent trades for context
+        const recentTrades = this.tradeHistory.slice(0, 10);
+        this.strategicAdvice = await getStrategicAdvice(this.stats, recentTrades, this.geminiAi);
         this.broadcast({ type: 'strategic_advice', data: this.strategicAdvice });
     }
 
-    updateStats() {
-        const tradesToday = this.tradeHistory.filter(t => new Date(t.timestamp).toDateString() === new Date().toDateString());
-        const successfulTrades = this.tradeHistory.filter(t => t.status === 'success');
-        
-        const totalPnl = this.tradeHistory.reduce((acc, t) => acc + t.profit, 0);
-        const successRate = this.tradeHistory.length > 0 ? (successfulTrades.length / this.tradeHistory.length) * 100 : 0;
+    async updateStats() {
+        const dbStats = await this.db.getStats();
         
         this.stats = {
-            ...this.stats,
-            totalPnl: totalPnl,
-            tradesToday: tradesToday.length,
-            successRate: parseFloat(successRate.toFixed(2)),
+            ...this.stats, // Conserve les stats non persistées comme le gas, etc.
+            ...dbStats,
         };
         this.broadcast({ type: 'stats_update', data: this.stats });
     }
