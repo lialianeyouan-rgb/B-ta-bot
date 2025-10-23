@@ -5,9 +5,10 @@ import { GoogleGenAI, Type } from "@google/genai";
  * @param {Opportunity} opportunity - The opportunity data.
  * @param {string} similarTradesContext - Context from the vector store.
  * @param {GoogleGenAI | null} ai - The initialized Gemini AI client.
+ * @param {number} flashLoanFee - The flash loan provider fee.
  * @returns {Promise<Opportunity>} The enriched opportunity.
  */
-export async function geminiAnalyze(opportunity, similarTradesContext, ai) {
+export async function geminiAnalyze(opportunity, similarTradesContext, ai, flashLoanFee) {
     if (!ai) {
         // Fallback simulation if Gemini API key is missing
         return {
@@ -32,6 +33,7 @@ export async function geminiAnalyze(opportunity, similarTradesContext, ai) {
         - Potential Spread: ${(opportunity.spread * 100).toFixed(4)}%
         - Estimated Liquidity: ${opportunity.liquidity}
         - Proposed Loan Amount: ${opportunity.loanAmount.toFixed(4)} ETH
+        - Flash Loan Fee: ${(flashLoanFee * 100).toFixed(4)}%
 
         Historical Context (similar past trades):
         ${similarTradesContext}
@@ -40,8 +42,10 @@ export async function geminiAnalyze(opportunity, similarTradesContext, ai) {
         - Gas Price: High (80 Gwei)
         - Market Volatility: Medium
         - General Sentiment: Neutral
+        - Potential for Slippage: Medium
 
-        Based on all this information, estimate the probability of success (pSuccess) as a float between 0.0 and 1.0. 
+        Based on all this information, including transaction fees (gas), flash loan fees, and potential price slippage, 
+        estimate the probability of a PROFITABLE success (pSuccess) as a float between 0.0 and 1.0. 
         Provide a brief rationale for your estimation. 
         Also, decide if using Flashbots for MEV protection is recommended (useFlashbots).
     `;

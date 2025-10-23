@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { UseArbitrageBot, BotConfig, TokenConfig, Strategy, RpcStatus } from '../types';
+import type { UseArbitrageBot, BotConfig, TokenConfig, Strategy } from '../types';
 import { AiInsightCard } from './AiInsightCard';
 
 const MainnetWarning = () => (
@@ -10,58 +10,6 @@ const MainnetWarning = () => (
         </p>
     </div>
 );
-
-const SecurityWarning = () => (
-    <div className="p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-300">
-        <h4 className="font-bold">Security Warning</h4>
-        <p className="text-sm mt-2">
-            This bot operates using a private key stored directly in the <strong>src/config.json</strong> file.
-            Exposing this file publicly (e.g., in a public GitHub repository) will result in the <strong>theft of all funds</strong> from that wallet.
-            For real funds, always use a secure key management solution and never commit secrets to version control.
-        </p>
-    </div>
-);
-
-const FlashLoanWarning = () => (
-    <div className="p-4 rounded-lg bg-purple-900/50 border border-purple-700 text-purple-300">
-        <h4 className="font-bold">EXTREME RISK: Live Flash Loan Strategy Enabled</h4>
-        <p className="text-sm mt-2">
-            You have configured a flash loan strategy. The bot will attempt to execute <strong>real transactions</strong> against your deployed smart contract. A bug in your contract or an error in the bot's logic could lead to a <strong>total and irreversible loss of funds</strong>. Ensure your contract is professionally audited and you fully understand the risks before proceeding.
-        </p>
-    </div>
-);
-
-const RpcMonitor: React.FC<{ rpcStatus: RpcStatus[] }> = ({ rpcStatus }) => {
-    return (
-        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-            <h3 className="text-lg font-semibold mb-4">RPC Node Monitor</h3>
-            <p className="text-xs text-gray-400 mb-4">The bot automatically uses the fastest available RPC and provides failover. Status is updated every minute.</p>
-            <div className="space-y-3">
-                {rpcStatus.map((rpc, index) => {
-                    const statusColor = rpc.status === 'online' ? 'text-green-400' : 'text-red-400';
-                    const latencyColor = rpc.latency && rpc.latency < 100 ? 'text-green-400' : rpc.latency && rpc.latency < 300 ? 'text-yellow-400' : 'text-red-400';
-
-                    return (
-                        <div key={index} className="flex items-center justify-between bg-gray-700/50 p-3 rounded-md">
-                            <div className="flex items-center space-x-3">
-                                <span className={`font-bold capitalize ${statusColor}`}>
-                                    {rpc.status}
-                                </span>
-                                <span className="text-sm font-mono text-gray-300 truncate">{rpc.url}</span>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                {rpc.isActive && <span className="px-2 py-1 text-xs font-bold text-white bg-blue-600 rounded-full">ACTIVE</span>}
-                                <span className={`text-sm font-semibold ${latencyColor}`}>
-                                    {rpc.latency !== null ? `${rpc.latency} ms` : 'N/A'}
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
 
 
 export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
@@ -80,10 +28,8 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
     setManualOverride(false);
   };
   
-  const handleGeneralConfigChange = (field: keyof BotConfig | keyof BotConfig['riskManagement'] | keyof BotConfig['flashLoan'], value: any) => {
-    if (field in localConfig.riskManagement) {
-        setLocalConfig(prev => ({ ...prev, riskManagement: { ...prev.riskManagement, [field]: value } }));
-    } else if (field in localConfig.flashLoan) {
+  const handleGeneralConfigChange = (field: keyof BotConfig | keyof BotConfig['flashLoan'], value: any) => {
+    if (field in localConfig.flashLoan) {
         setLocalConfig(prev => ({ ...prev, flashLoan: { ...prev.flashLoan, [field]: value } }));
     } else {
         setLocalConfig(prev => ({ ...prev, [field]: value as any }));
@@ -137,12 +83,11 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
   
   const inputClasses = "mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-800 disabled:text-gray-400";
   const smallInputClasses = "bg-gray-600 border border-gray-500 rounded p-2 text-sm w-full disabled:bg-gray-700 disabled:text-gray-400";
-  const hasFlashLoanStrategy = localConfig.tokens.some(t => t.strategy.includes('flashloan'));
-
+  
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Bot Configuration</h2>
+        <h2 className="text-2xl font-bold">Token & Strategy Configuration</h2>
         <div className="flex items-center space-x-3">
             <span className={`text-sm font-medium ${manualOverride ? 'text-yellow-400' : 'text-gray-400'}`}>Manual Override</span>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -153,14 +98,9 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
       </div>
       
       <MainnetWarning />
-      <SecurityWarning />
-      {hasFlashLoanStrategy && <FlashLoanWarning />}
       <AiInsightCard advice={bot.strategicAdvice} />
       
-      <RpcMonitor rpcStatus={bot.rpcStatus} />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-4">
+      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-4">
             <h3 className="text-lg font-semibold">General Settings</h3>
              <div>
                 <label htmlFor="pSuccessThreshold" className="block text-sm font-medium text-gray-300">P(Success) Threshold (%)</label>
@@ -177,22 +117,7 @@ export const Configuration: React.FC<{ bot: UseArbitrageBot }> = ({ bot }) => {
                 <input type="text" id="flashLoanContract" value={localConfig.flashLoan.contractAddress} className={inputClasses} disabled />
                 <p className="mt-2 text-xs text-gray-400">The audited smart contract used for executing flash loans.</p>
             </div>
-        </div>
-        <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-4">
-             <h3 className="text-lg font-semibold">Risk Management</h3>
-             <div>
-                <label htmlFor="dailyLossThreshold" className="block text-sm font-medium text-gray-300">Daily Loss Threshold (%)</label>
-                <input type="number" id="dailyLossThreshold" value={(localConfig.riskManagement.dailyLossThreshold * 100).toFixed(2)} onChange={(e) => handleGeneralConfigChange('dailyLossThreshold', parseFloat(e.target.value) / 100)} className={inputClasses} disabled={!manualOverride} />
-                <p className="mt-2 text-xs text-gray-400">Pause bot if daily PnL drops below this % of capital.</p>
-            </div>
-            <div>
-                <label htmlFor="cooldownMinutes" className="block text-sm font-medium text-gray-300">Cooldown (Minutes)</label>
-                <input type="number" id="cooldownMinutes" value={localConfig.riskManagement.cooldownMinutes} onChange={(e) => handleGeneralConfigChange('cooldownMinutes', parseInt(e.target.value))} className={inputClasses} disabled={!manualOverride} />
-                <p className="mt-2 text-xs text-gray-400">How long to pause after risk threshold is hit.</p>
-            </div>
-        </div>
       </div>
-
 
       <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 space-y-4">
         <h3 className="text-lg font-semibold">Monitored Tokens</h3>

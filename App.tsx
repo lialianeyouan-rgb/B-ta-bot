@@ -6,6 +6,7 @@ import { Configuration } from './components/Configuration';
 import { TradeHistory } from './components/TradeHistory';
 import { Logs } from './components/Logs';
 import { Backtesting } from './components/Backtesting';
+import { Security } from './components/Security';
 import { useArbitrageBot } from './hooks/useArbitrageBot';
 import type { View } from './types';
 
@@ -25,6 +26,8 @@ const App: React.FC = () => {
         return <Logs logs={bot.logs} />;
       case 'backtesting':
         return <Backtesting bot={bot} />;
+      case 'security':
+        return <Security bot={bot} />;
       default:
         return <Dashboard bot={bot} />;
     }
@@ -37,6 +40,9 @@ const App: React.FC = () => {
         <Header 
           botStatus={bot.isRunning ? 'running' : 'stopped'} 
           statusMessage={bot.statusMessage} 
+          isKillSwitchActive={bot.isKillSwitchActive}
+          isSimulationMode={bot.isSimulationMode}
+          toggleSimulationMode={bot.toggleSimulationMode}
           marketStats={{ 
             gasPriceGwei: bot.stats.gasPriceGwei, 
             volatility: bot.stats.volatility,

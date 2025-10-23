@@ -28,7 +28,7 @@ function broadcast(message) {
 wss.on('connection', (ws) => {
     clients.add(ws);
     console.log('Client WebSocket connecté');
-    broadcast({ type: 'log', data: 'Un nouveau client frontend est connecté.' });
+    broadcast({ type: 'log', data: '[INFO] Un nouveau client frontend est connecté.' });
 
     ws.on('close', () => {
         clients.delete(ws);
@@ -52,6 +52,8 @@ const main = async () => {
                 stats: bot.stats,
                 logs: bot.logs,
                 strategicAdvice: bot.strategicAdvice,
+                isKillSwitchActive: bot.isKillSwitchActive,
+                isSimulationMode: bot.isSimulationMode,
             });
         });
 
@@ -65,6 +67,25 @@ const main = async () => {
                 res.json({ message: "Configuration mise à jour." });
             } catch (error) {
                 res.status(500).json({ error: 'Failed to update configuration.' });
+            }
+        });
+
+        app.post('/api/control', (req, res) => {
+            const { action } = req.body;
+            try {
+                switch(action) {
+                    case 'toggleSimulation':
+                        bot.toggleSimulationMode();
+                        break;
+                    case 'resetKillSwitch':
+                        bot.resetKillSwitch();
+                        break;
+                    default:
+                        return res.status(400).json({ error: 'Invalid action.' });
+                }
+                res.json({ message: `Action '${action}' executed.` });
+            } catch(error) {
+                 res.status(500).json({ error: `Failed to execute action '${action}'.` });
             }
         });
 

@@ -10,17 +10,17 @@ if (!fs.existsSync(logDirectory)) {
 }
 
 export class Logger {
-    static log(message) {
-        const logMessage = `[${new Date().toISOString()}] ${message}\n`;
+    static log(message, level = 'INFO') {
+        const logMessage = `[${new Date().toISOString()}] [${level}] ${message}\n`;
         try {
             fs.appendFileSync(logFilePath, logMessage);
-            console.log(message); // Garder le logging console pour le développement
+            console.log(`[${level}] ${message}`); // Garder le logging console pour le développement
         } catch (error) {
             console.error('Failed to write to log file:', error);
         }
     }
 
-    static getRecentLogs(lines = 100) {
+    static getRecentLogs(lines = 200) {
         try {
             if (!fs.existsSync(logFilePath)) {
                 return ['Log file not yet created.'];
@@ -30,11 +30,12 @@ export class Logger {
             
             return logLines.slice(-lines).map(line => {
                 // Embellir le timestamp pour l'affichage sur le frontend
-                const match = line.match(/\[(.*?)\] (.*)/);
-                if (match && match[1] && match[2]) {
+                const match = line.match(/\[(.*?)\] \[(.*?)\] (.*)/s);
+                if (match && match[1] && match[2] && match[3]) {
                     const timestamp = new Date(match[1]).toLocaleTimeString();
-                    const message = match[2];
-                    return `[${timestamp}] ${message}`;
+                    const level = match[2];
+                    const message = match[3];
+                    return `[${timestamp}] [${level}] ${message}`;
                 }
                 return line;
             });

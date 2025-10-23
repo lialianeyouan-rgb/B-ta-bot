@@ -3,13 +3,26 @@ import type { Opportunity, Trade, BotConfig, UseArbitrageBot, MarketSentiment, R
 
 const API_BASE_URL = 'http://localhost:3001';
 
+const initialBotConfig: BotConfig = {
+  tokens: [],
+  pSuccessThreshold: 0,
+  flashLoan: { provider: '', fee: 0, contractAddress: '' },
+  riskManagement: { 
+    dailyLossThreshold: 0.02, 
+    cooldownMinutes: 60,
+    killSwitch: { enabled: false, balanceThresholdEth: 0 }
+  }
+};
+
 export const useArbitrageBot = (): UseArbitrageBot => {
   const [isRunning, setIsRunning] = useState(false);
+  const [isKillSwitchActive, setIsKillSwitchActive] = useState(false);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Connecting...');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [tradeHistory, setTradeHistory] = useState<Trade[]>([]);
   const [logs, setLogs] = useState<string[]>(['Connecting to bot backend...']);
-  const [config, setConfig] = useState<BotConfig>({ tokens: [], pSuccessThreshold: 0, flashLoan: { provider: '', fee: 0, contractAddress: '' }, riskManagement: { dailyLossThreshold: 0.02, cooldownMinutes: 60 } });
+  const [config, setConfig] = useState<BotConfig>(initialBotConfig);
   const [stats, setStats] = useState({ totalPnl: 0, tradesToday: 0, successRate: 0, gasPriceGwei: '0', volatility: 'low', estimatedRpcRequestsPerDay: 0 });
   const [strategicAdvice, setStrategicAdvice] = useState<string | null>(null);
   const [marketSentiment, setMarketSentiment] = useState<MarketSentiment | null>(null);
@@ -18,7 +31,7 @@ export const useArbitrageBot = (): UseArbitrageBot => {
   const ws = useRef<WebSocket | null>(null);
 
   const addLog = useCallback((message: string) => {
-    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev.slice(0, 99)]);
+    setLogs(prev => [message, ...prev.slice(0, 199)]);
   }, []);
 
   useEffect(() => {
@@ -43,6 +56,8 @@ export const useArbitrageBot = (): UseArbitrageBot => {
             const rpcData = await rpcRes.json();
 
             setIsRunning(statusData.isRunning);
+            setIsKillSwitchActive(statusData.isKillSwitchActive);
+            setIsSimulationMode(statusData.isSimulationMode);
             setStatusMessage(statusData.statusMessage);
             setStats(statusData.stats);
             setStrategicAdvice(statusData.strategicAdvice);
@@ -96,6 +111,16 @@ export const useArbitrageBot = (): UseArbitrageBot => {
         case 'rpc_status_update':
           setRpcStatus(message.data);
           break;
+        case 'kill_switch_update':
+          setIsKillSwitchActive(message.data);
+          if (message.data === true) {
+            addLog("CRITICAL: Kill switch has been activated by the backend!");
+          }
+          break;
+        case 'simulation_mode_update':
+          setIsSimulationMode(message.data);
+          addLog(`Simulation mode is now ${message.data ? 'ON' : 'OFF'}.`);
+          break;
         case 'risk_triggered':
             addLog(`RISK MANAGEMENT TRIGGERED: ${message.data}`);
             setStatusMessage(`Paused - Risk Limit Hit`);
@@ -128,7 +153,27 @@ export const useArbitrageBot = (): UseArbitrageBot => {
         addLog(`Error updating config: ${errorMessage}`);
     }
   }, [addLog]);
+  
+  const sendControlCommand = useCallback(async (action: string) => {
+      try {
+          await fetch(`${API_BASE_URL}/api/control`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action }),
+          });
+      } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          addLog(`Error sending control command '${action}': ${errorMessage}`);
+      }
+  }, [addLog]);
 
+  const toggleSimulationMode = useCallback(() => {
+    sendControlCommand('toggleSimulation');
+  }, [sendControlCommand]);
 
-  return { isRunning, statusMessage, opportunities, tradeHistory, logs, config, stats, strategicAdvice, updateConfig, marketSentiment, rpcStatus };
+  const resetKillSwitch = useCallback(() => {
+    sendControlCommand('resetKillSwitch');
+  }, [sendControlCommand]);
+
+  return { isRunning, statusMessage, opportunities, tradeHistory, logs, config, stats, strategicAdvice, updateConfig, marketSentiment, rpcStatus, isKillSwitchActive, isSimulationMode, toggleSimulationMode, resetKillSwitch };
 };

@@ -1,47 +1,77 @@
-// This file is intended to find arbitrage opportunities by scanning DEXs.
-// The current implementation is a SIMULATION for demonstration purposes.
-// The caching implemented here is also a simulation to demonstrate the principle
-// of reducing redundant data fetching to lower costs and improve performance.
+// This file finds REAL arbitrage opportunities by scanning DEX pairs on-chain.
+import { ethers } from "ethers";
 
-// In-memory cache with a Time-to-Live (TTL)
-const cache = {
-    data: [],
-    lastFetch: 0,
-    ttl: 30000, // 30 seconds
-};
+// A minimalist ABI for a Uniswap V2-style pair contract.
+const pairABI = [
+    'function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)'
+];
+
+/**
+ * Calculates the price from reserves.
+ * Note: This is a simplified calculation. A production bot would need to handle token decimals precisely.
+ */
+function getPrice(reserveA, reserveB) {
+    if (reserveA.isZero() || reserveB.isZero()) return 0;
+    return reserveB.div(reserveA);
+}
 
 export async function collectData(config, provider) {
-    const now = Date.now();
-    
-    // Si le cache est encore valide, retourne un tableau vide pour simuler "pas de NOUVELLE opportunité"
-    if (now - cache.lastFetch < cache.ttl) {
-        return [];
-    }
-    
     const opportunities = [];
     
-    // Mettre à jour le temps de la dernière tentative de "fetch"
-    cache.lastFetch = now;
-    
-    // Simuler la découverte d'une opportunité de manière aléatoire
-    if (Math.random() > 0.75) { // 25% de chance par cycle de trouver quelque chose
-        const tokenConfig = config.tokens[Math.floor(Math.random() * config.tokens.length)];
-        
-        const opportunity = {
-            id: `opp-${Date.now()}`,
-            token: tokenConfig,
-            strategy: tokenConfig.strategy,
-            // Simuler un spread légèrement supérieur à l'exigence minimale
-            spread: tokenConfig.minSpread + (Math.random() * 0.005), 
-            liquidity: `${(Math.random() * 200).toFixed(2)} WMATIC`,
-            timestamp: Date.now(),
-            loanAmount: Math.random() * 5 + 0.5, // Simuler un prêt entre 0.5 et 5.5 ETH
-        };
-        opportunities.push(opportunity);
+    for (const tokenConfig of config.tokens) {
+        if (tokenConfig.strategy !== 'flashloan-pairwise-interdex' || tokenConfig.dexs.length !== 2) {
+            // This real-time scanner currently only supports pairwise inter-dex strategies.
+            // Triangular arbitrage requires more complex path finding.
+            continue;
+        }
+
+        try {
+            const [dexA, dexB] = tokenConfig.dexs;
+            const pairAddressA = tokenConfig.pairAddresses[dexA];
+            const pairAddressB = tokenConfig.pairAddresses[dexB];
+            
+            if (!pairAddressA || !pairAddressB) continue;
+
+            const contractA = new ethers.Contract(pairAddressA, pairABI, provider);
+            const contractB = new ethers.Contract(pairAddressB, pairABI, provider);
+            
+            const [reservesA, reservesB] = await Promise.all([
+                contractA.getReserves(),
+                contractB.getReserves()
+            ]);
+
+            // Assuming tokenA is reserve0 and tokenB is reserve1 for simplicity.
+            // A robust implementation needs to check token0() and token1() addresses.
+            const priceA = getPrice(reservesA.reserve0, reservesA.reserve1);
+            const priceB = getPrice(reservesB.reserve0, reservesB.reserve1);
+
+            if (priceA === 0 || priceB === 0) continue;
+
+            const spread = (priceA.gt(priceB))
+                ? (priceA.sub(priceB)).div(priceB)
+                : (priceB.sub(priceA)).div(priceA);
+            
+            const spreadFloat = parseFloat(ethers.utils.formatEther(spread));
+
+            if (spreadFloat > tokenConfig.minSpread) {
+                 const opportunity = {
+                    id: `opp-${Date.now()}-${tokenConfig.symbol}`,
+                    token: tokenConfig,
+                    strategy: tokenConfig.strategy,
+                    spread: spreadFloat,
+                    // Real liquidity is complex to calculate; using reserves as a proxy.
+                    liquidity: `${ethers.utils.formatEther(reservesA.reserve0)} / ${ethers.utils.formatEther(reservesB.reserve0)}`,
+                    timestamp: Date.now(),
+                    // Propose a loan amount based on configured capital.
+                    loanAmount: config.riskManagement.capitalEth || 1.0, 
+                };
+                opportunities.push(opportunity);
+            }
+
+        } catch (error) {
+            console.error(`Error collecting data for ${tokenConfig.symbol}: ${error.message}`);
+        }
     }
-
-    // Mettre en cache le résultat (même s'il est vide)
-    cache.data = opportunities;
-
+    
     return opportunities;
 }

@@ -48,6 +48,11 @@ const AnalysisIcon = () => (
     </svg>
 );
 
+const SecurityIcon = () => (
+  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.944A12.02 12.02 0 0012 22a12.02 12.02 0 009-1.056c.343-.344.665-.72.956-1.124" />
+  </svg>
+);
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }> = ({ icon, label, isActive, onClick }) => {
   return (
@@ -79,11 +84,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView })
         <NavItem icon={<HistoryIcon />} label="Trade History" isActive={currentView === 'history'} onClick={() => setCurrentView('history')} />
         <NavItem icon={<AnalysisIcon />} label="Strategy Analysis" isActive={currentView === 'backtesting'} onClick={() => setCurrentView('backtesting')} />
         <NavItem icon={<LogsIcon />} label="Live Logs" isActive={currentView === 'logs'} onClick={() => setCurrentView('logs')} />
-        <NavItem icon={<SettingsIcon />} label="Configuration" isActive={currentView === 'configuration'} onClick={() => setCurrentView('configuration')} />
+        <NavItem icon={<SettingsIcon />} label="Token Configuration" isActive={currentView === 'configuration'} onClick={() => setCurrentView('configuration')} />
+        <NavItem icon={<SecurityIcon />} label="Security & Health" isActive={currentView === 'security'} onClick={() => setCurrentView('security')} />
       </nav>
       
       <div className="mt-auto p-2 text-center text-xs text-gray-500">
-        <p>Gemini Arbitrage Engine v2.1</p>
+        <p>Gemini Arbitrage Engine v2.2</p>
         <p>&copy; 2024</p>
       </div>
     </div>

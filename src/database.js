@@ -66,17 +66,20 @@ export class Database {
     }
     
     async getStats() {
+        const liveTradesFilter = "WHERE status <> 'simulated'";
+
         const result = await this.db.get(`
             SELECT
                 SUM(profit) as totalPnl,
                 COUNT(*) as totalTrades
             FROM trades
+            ${liveTradesFilter}
         `);
 
         const tradesTodayResult = await this.db.get(`
             SELECT COUNT(*) as count
             FROM trades
-            WHERE timestamp >= ?
+            WHERE timestamp >= ? AND status <> 'simulated'
         `, new Date().setHours(0, 0, 0, 0));
 
         const successfulTradesResult = await this.db.get(`

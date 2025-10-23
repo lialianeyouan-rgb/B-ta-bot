@@ -7,6 +7,8 @@ const getStatusBadge = (status: Trade['status']) => {
             return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Success</span>;
         case 'failed':
             return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Failed</span>;
+        case 'simulated':
+            return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Simulated</span>;
         default:
             return null;
     }

@@ -16,6 +16,10 @@
       "addresses": {
         "tokenA": "0xC168E40227E4EBD8C1CaE80F7a55a4F0e6D662Df",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      },
+      "pairAddresses": {
+        "DFYN": "0x53df6472364051821f24d216110711e131e54143",
+        "QuickSwap": "0x676903f1b473783a3f3a1f0a205a2e6f4a2d348a"
       }
     },
     {
@@ -27,6 +31,10 @@
       "addresses": {
         "tokenA": "0x53e0bca35ec356bd5dddf734b7f8bcac177c8598",
         "tokenB": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+      },
+      "pairAddresses": {
+        "QuickSwap": "0x8565c40bc75a8521092e472a4520c35422fd5a35",
+        "Sushiswap": "0xfa7196cb3ffc9714e643205710676e4842187ded"
       }
     },
     {
@@ -39,7 +47,8 @@
         "tokenA": "0x61299774020dA444Af134c82fa83E3810b309991",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
         "tokenC": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
-      }
+      },
+      "pairAddresses": {}
     },
     {
       "symbol": "DYDX/WMATIC",
@@ -50,6 +59,10 @@
       "addresses": {
         "tokenA": "0x92D6C1e31e145196700028Be223a8287fe814a77",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      },
+      "pairAddresses": {
+        "QuickSwap": "0x5c26b98650f555e1b54a2a6243fadd701382585c",
+        "Sushiswap": "0xd3f1585c54a935f05a92a04a36f5b2612a8ab862"
       }
     },
     {
@@ -61,6 +74,10 @@
       "addresses": {
         "tokenA": "0xD6DF932A45C0f255f85145f286EA0B292B21C90B",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+      },
+      "pairAddresses": {
+          "Sushiswap": "0xadfe2f4f23b18f2dce1338a8f7c9e42103f269f2",
+          "DFYN": "0x65430f4af6746f82713e5513d4b67f3c3d142c6a"
       }
     },
     {
@@ -72,7 +89,8 @@
       "addresses": {
         "tokenA": "0x5fe2B58c013d7601147Dcdd68C143A77499f5531",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "MASK/WMATIC",
@@ -83,7 +101,8 @@
       "addresses": {
         "tokenA": "0x2b9e7ccdf0f4e5b24758c3785132b7a1347895d3",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "NMR/WMATIC",
@@ -94,7 +113,8 @@
       "addresses": {
         "tokenA": "0x46d532F51500732C55AC52331405a113E42A8E85",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "BAT/WMATIC",
@@ -105,7 +125,8 @@
       "addresses": {
         "tokenA": "0x7642e1A4C7337A1B243C7384357D2506bC81788E",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "WNXM/WMATIC",
@@ -116,7 +137,8 @@
       "addresses": {
         "tokenA": "0x1A551499DD2d27b99351C123AA516215040B8452",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "SPELL/WMATIC",
@@ -127,7 +149,8 @@
       "addresses": {
         "tokenA": "0x4622E4Add8f23249145b204AC4A45371604a4Ab2",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "MATICX/WMATIC",
@@ -138,7 +161,8 @@
       "addresses": {
         "tokenA": "0xfa68FB4628DFF1028CFEc22b48179FaA7a0fB959",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "GHST/WMATIC",
@@ -149,7 +173,8 @@
       "addresses": {
         "tokenA": "0x385Eeac5cB85A38A9a07A70c73e0a3271CfB54A7",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+       "pairAddresses": {}
     },
     {
       "symbol": "MITH/WMATIC",
@@ -160,7 +185,8 @@
       "addresses": {
         "tokenA": "0x2C465a3A84920952a1B7454844359E8aC680a221",
         "tokenB": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
-      }
+      },
+      "pairAddresses": {}
     }
   ],
   "pSuccessThreshold": 0.7,
@@ -172,6 +198,10 @@
   "riskManagement": {
     "dailyLossThreshold": 0.02,
     "cooldownMinutes": 60,
-    "capitalEth": 5.0
+    "capitalEth": 5.0,
+    "killSwitch": {
+      "enabled": true,
+      "balanceThresholdEth": 0.5
+    }
   }
 }

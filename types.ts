@@ -21,6 +21,10 @@ export interface BotConfig {
   riskManagement: {
       dailyLossThreshold: number; // as a percentage, e.g., 0.02 for 2%
       cooldownMinutes: number;
+      killSwitch: {
+          enabled: boolean;
+          balanceThresholdEth: number;
+      };
   };
 }
 
@@ -57,7 +61,7 @@ export interface Trade {
 
 export type BotStatus = 'running' | 'stopped' | 'error' | 'paused';
 
-export type View = 'dashboard' | 'configuration' | 'history' | 'logs' | 'backtesting';
+export type View = 'dashboard' | 'configuration' | 'history' | 'logs' | 'backtesting' | 'security';
 
 export interface RpcStatus {
     url: string;
@@ -68,6 +72,8 @@ export interface RpcStatus {
 
 export interface UseArbitrageBot {
     isRunning: boolean;
+    isKillSwitchActive: boolean;
+    isSimulationMode: boolean;
     statusMessage: string;
     opportunities: Opportunity[];
     tradeHistory: Trade[];
@@ -85,4 +91,6 @@ export interface UseArbitrageBot {
         estimatedRpcRequestsPerDay: number;
     };
     updateConfig: (newConfig: BotConfig) => void;
+    toggleSimulationMode: () => void;
+    resetKillSwitch: () => void;
 }
